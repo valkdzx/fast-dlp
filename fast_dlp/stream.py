@@ -68,7 +68,8 @@ class _Fetcher:
         if conns is None:
             conns = self.local.conns = download._Conn()
         buf = _Mem(start, end - start + 1)
-        download._fetch_chunk(remote.stream, start, end, conns, buf, self.count, "param")
+        download._fetch_chunk(remote.stream, start, end, conns, buf, self.count,
+                              getattr(remote, "range_mode", "param"))
         return buf.data
 
     def submit(self, remote, start, end):

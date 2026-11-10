@@ -134,6 +134,29 @@
   .preview { margin-top: 10px; font-size: 13px; color: var(--muted); word-break: break-all; }
   .preview b { color: var(--fg); font-weight: 500; }
 
+  /* lists: playlists, albums, search results */
+  .listhead { text-align: center; margin-bottom: 20px; }
+  .listhead .site { font-size: 12px; letter-spacing: .08em; text-transform: uppercase; color: var(--faint); }
+  .listhead h2 { font-size: 22px; line-height: 1.3; margin: 6px 0 4px; letter-spacing: -.01em; }
+  .listbar { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin-bottom: 10px; flex-wrap: wrap; }
+  .btn.sm { padding: 7px 12px; font-size: 13px; font-weight: 500; }
+  .entries { border: 1px solid var(--line); border-radius: var(--radius); max-height: 460px; overflow-y: auto; background: var(--surface); }
+  .entry { display: grid; grid-template-columns: 22px 64px 1fr auto; gap: 12px; align-items: center; padding: 10px 12px; cursor: pointer;
+           border-top: 1px solid var(--line); transition: background .2s, opacity .25s; animation: fade .4s var(--ease) both; }
+  .entry:first-child { border-top: 0; }
+  .entry:hover { background: var(--surface-2); }
+  .entry.off { opacity: .45; }
+  .entry input { appearance: none; width: 18px; height: 18px; border-radius: 5px; border: 1px solid var(--line-strong); margin: 0;
+                 display: grid; place-items: center; cursor: pointer; transition: background .2s, border-color .2s; }
+  .entry input:checked { background: #fff; border-color: #fff; }
+  .entry input:checked::after { content: ""; width: 9px; height: 5px; border: solid #000; border-width: 0 0 2px 2px; transform: translateY(-1px) rotate(-45deg); }
+  .entry .pic { width: 64px; aspect-ratio: 16 / 9; border-radius: 6px; background: var(--surface-2) center / cover no-repeat; }
+  .entry .tt { min-width: 0; }
+  .entry .tt b { display: block; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .entry .tt span { display: block; font-size: 12px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .entry .d { font-size: 12px; color: var(--muted); }
+  .hint { font-size: 13px; color: var(--faint); text-align: center; margin-top: 10px; }
+
   .summary { display: flex; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin: 24px 0 14px; }
   .summary .size { font-size: 26px; font-weight: 700; letter-spacing: -.02em; }
 
@@ -168,6 +191,8 @@
     main { padding-top: 48px; }
     h1 { font-size: 28px; }
     form.search { flex-direction: column; }
+    .entry { grid-template-columns: 22px 1fr auto; }
+    .entry .pic { display: none; }
   }
   @media (prefers-reduced-motion: reduce) {
     *, *::before, *::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; }
@@ -192,11 +217,11 @@
       <rect class="base" x="64" y="212" width="128" height="14" rx="7" fill="#fff"/>
     </svg>
     <h1>fast-dlp</h1>
-    <p class="lead">Скачивание с YouTube до 4K. Файл собирается на лету и идёт к вам потоком: на сервере ничего не сохраняется.</p>
+    <p class="lead">YouTube до 4K, Spotify, Яндекс Музыка, VK, SoundCloud, TikTok, Pinterest, Pornhub, плейлисты, поиск и прямые ссылки — всё, что берёт fast-dlp в командной строке. Файл собирается на лету и идёт к вам потоком: на сервере ничего не сохраняется.</p>
   </header>
 
   <form class="search rise" style="--i:2" id="search" autocomplete="off">
-    <input class="field" id="url" type="text" inputmode="url" placeholder="Ссылка на видео YouTube" aria-label="Ссылка на видео YouTube" autofocus>
+    <input class="field" id="url" type="text" inputmode="url" placeholder="Ссылка или поиск: исполнитель - название" aria-label="Ссылка или поисковый запрос" autofocus>
     <button class="btn" id="find" type="submit">Найти</button>
   </form>
 
@@ -212,12 +237,20 @@
 
   <section id="result" hidden>
     <div class="video rise">
-      <div class="thumb"><img id="thumb" alt=""><span class="len num" id="len"></span></div>
+      <div class="thumb" id="thumb-box"><img id="thumb" alt=""><span class="len num" id="len"></span></div>
       <h2 id="title"></h2>
       <div class="muted" id="sub"></div>
     </div>
 
-    <div class="group rise" style="--i:1">
+    <div class="group rise" style="--i:1" id="g-file">
+      <div class="label"><b>Что скачать</b><span id="file-note"></span></div>
+      <div class="seg" data-key="fmode">
+        <button type="button" data-v="original">Как есть</button>
+        <button type="button" data-v="mp3" id="fmp3-btn">Звук в MP3</button>
+      </div>
+    </div>
+
+    <div class="group rise" style="--i:1" id="g-mode">
       <div class="label"><b>Что скачать</b></div>
       <div class="seg" data-key="mode">
         <button type="button" data-v="video">Видео со звуком</button>
@@ -269,7 +302,7 @@
       </div>
     </div>
 
-    <div class="group rise" style="--i:4">
+    <div class="group rise" style="--i:4" id="g-cut">
       <label class="switch"><span><b>Отрывок</b><br><span class="muted" style="font-size:13px">только нужная часть, без ffmpeg; режется по ключевым кадрам</span></span><input type="checkbox" id="cut"></label>
       <div class="collapse" id="cut-box"><div>
         <div class="row" style="margin-top:12px">
@@ -282,7 +315,7 @@
       </div></div>
     </div>
 
-    <div class="group rise" style="--i:5">
+    <div class="group rise" style="--i:5" id="g-meta">
       <div class="label"><b>Метаданные</b></div>
       <label class="switch"><span>Теги: название, автор, ссылка<span id="rg-note"></span></span><input type="checkbox" id="tags" checked></label>
       <label class="switch"><span>Обложка внутри файла</span><input type="checkbox" id="cover"></label>
@@ -296,7 +329,7 @@
     </div>
 
     <div class="group rise" style="--i:7">
-      <div class="label"><b>Соединений с YouTube</b><span class="num" id="conn-v">16</span></div>
+      <div class="label"><b>Соединений</b><span class="num" id="conn-v">16</span></div>
       <input type="range" id="conn" min="1" max="32" value="16">
     </div>
 
@@ -306,13 +339,71 @@
     <button class="btn big rise" style="--i:9" id="go" type="button">Скачать</button>
   </section>
 
+  <section id="list" hidden>
+    <div class="listhead rise"><div class="site" id="l-site"></div><h2 id="l-title"></h2><div class="muted" id="l-sub"></div></div>
+    <div class="listbar rise" style="--i:1">
+      <span class="muted num" id="l-count"></span>
+      <span class="row"><button class="btn ghost sm" type="button" id="l-all">Все</button><button class="btn ghost sm" type="button" id="l-none">Ничего</button><button class="btn ghost sm" type="button" id="l-inv">Наоборот</button></span>
+    </div>
+    <div class="entries rise" style="--i:2" id="entries"></div>
+
+    <div class="group rise" style="--i:3" id="lg-mode">
+      <div class="label"><b>Что скачать</b><span id="l-mode-note"></span></div>
+      <div class="seg" data-key="lmode">
+        <button type="button" data-v="video">Видео со звуком</button>
+        <button type="button" data-v="audio">Только звук</button>
+      </div>
+    </div>
+    <div class="group rise" style="--i:3" id="lg-audio">
+      <div class="label"><b>Формат звука</b><span>файлы с других сайтов: как есть или MP3</span></div>
+      <div class="seg" data-key="audio_format">
+        <button type="button" data-v="m4a">M4A</button>
+        <button type="button" data-v="opus">Opus</button>
+        <button type="button" data-v="mp3" class="mp3-any">MP3</button>
+      </div>
+    </div>
+    <div class="group rise" style="--i:3" id="lg-mp3">
+      <div class="label"><b>Битрейт MP3</b><span>перекодирование через ffmpeg</span></div>
+      <div class="seg" data-key="mp3_quality">
+        <button type="button" data-v="320k">320</button>
+        <button type="button" data-v="256k">256</button>
+        <button type="button" data-v="192k">192</button>
+        <button type="button" data-v="128k">128</button>
+        <button type="button" data-v="V0">V0</button>
+        <button type="button" data-v="V2">V2</button>
+      </div>
+    </div>
+    <div class="group rise" style="--i:3" id="lg-quality">
+      <div class="label"><b>Качество видео</b><span>MP4; если такого нет — ближайшее ниже</span></div>
+      <div class="seg" data-key="lheight">
+        <button type="button" data-v="">Лучшее</button>
+        <button type="button" data-v="2160">4K</button>
+        <button type="button" data-v="1080">1080p</button>
+        <button type="button" data-v="720">720p</button>
+        <button type="button" data-v="480">480p</button>
+      </div>
+    </div>
+    <div class="group rise" style="--i:4">
+      <div class="label"><b>Метаданные</b></div>
+      <label class="switch"><span>Теги: название, исполнитель, альбом</span><input type="checkbox" id="l-tags" checked></label>
+      <label class="switch"><span>Обложка внутри файла</span><input type="checkbox" id="l-cover" checked></label>
+    </div>
+    <div class="group rise" style="--i:5">
+      <div class="label"><b>Имя файла</b></div>
+      <input class="field" id="l-template" style="width:100%;padding:10px 12px" spellcheck="false" aria-label="Шаблон имени" value="{title}">
+      <div class="preview">Поля: {title} {author} {id} {height} {ext}</div>
+    </div>
+    <button class="btn big rise" style="--i:6" id="l-go" type="button">Скачать</button>
+    <div class="hint">По три файла одновременно. Браузер может один раз спросить, можно ли сайту скачивать несколько файлов.</div>
+  </section>
+
   <section class="downloads" id="downloads" hidden>
     <h3>Загрузки</h3>
     <div id="jobs"></div>
   </section>
 
   <footer>
-    <p>fast-dlp · InnerTube VISIONOS · встроенный муксер</p>
+    <p>fast-dlp · те же источники, что в командной строке · встроенный муксер</p>
     <p>Ссылка на скачивание одноразовая. Доставка подтверждается, когда браузер получил последний байт.</p>
   </footer>
 </main>
@@ -325,6 +416,7 @@
     info: null, url: "",
     mode: "video", container: "mp4", audio_format: "m4a", codec: "", mp3_quality: "320k",
     height: null, fps: null, connections: 16, template: "{title}",
+    fmode: "original", lmode: "video", lheight: "", sel: new Set(),
   };
   const jobs = new Map();
 
@@ -346,6 +438,7 @@
       S[seg.dataset.key] = b.dataset.v;
       if (seg.dataset.key === "container") { S.codec = ""; }
       if (seg.dataset.key === "mode") { $("cover").checked = S.mode === "audio"; }
+      if (seg.dataset.key === "fmode") { $("cover").checked = S.fmode === "mp3"; }
       render();
     });
   }
@@ -396,6 +489,10 @@
   // -- render ----------------------------------------------------------------------------------
   function render() {
     if (!S.info) return;
+    if (S.info.kind === "list") return renderList();
+    if (S.info.kind === "file") return renderFile();
+    ["g-mode", "g-cut", "g-meta"].forEach((id) => { $(id).hidden = false; });
+    $("g-file").hidden = true;
     const audio = S.mode === "audio";
     $("g-container").hidden = audio;
     $("g-quality").hidden = audio;
@@ -481,23 +578,113 @@
     document.querySelectorAll("#templates .chip").forEach((c) => c.classList.toggle("on", c.dataset.t === S.template));
   }
 
+  const fill = (template, fields) => template.replace(/\{(\w+)\}/g, (m, k) => (k in fields ? fields[k] : "NA")).replace(/[\\/:*?"<>|]/g, "_").trim();
+  const KBPS = { "320k": 320, "256k": 256, "192k": 192, "128k": 128, V0: 245, V2: 190 };
+
+  function renderFile() {
+    const d = S.info, mp3 = S.fmode === "mp3";
+    ["g-mode", "g-container", "g-audio", "g-quality", "g-codec", "g-cut"].forEach((id) => { $(id).hidden = true; });
+    $("g-file").hidden = false;
+    $("g-mp3").hidden = !mp3;
+    $("g-meta").hidden = !mp3;
+    $("fmp3-btn").disabled = !d.ffmpeg;
+    $("fmp3-btn").title = d.ffmpeg ? "" : "на сервере нет ffmpeg";
+    if (!d.ffmpeg && mp3) S.fmode = "original";
+    $("file-note").textContent = mp3 ? "перекодирование через ffmpeg" : d.container === "HLS" ? "HLS: сегменты по порядку, без перекодирования" : `${d.container}, байт в байт`;
+    $("rg-note").textContent = "";
+    document.querySelectorAll(".seg").forEach(paintSeg);
+    $("size").textContent = mp3 ? (d.duration ? "≈ " + size(d.duration * KBPS[S.mp3_quality] * 125) : "—") : d.size ? size(d.size) : "—";
+    $("what").textContent = mp3 ? "MP3 " + S.mp3_quality.replace("k", "") : d.size ? d.container : `${d.container} · размер станет известен по ходу`;
+    S.template = $("template").value || "{title}";
+    const ext = mp3 ? "mp3" : d.container === "HLS" ? "ts|mp4" : d.container.toLowerCase();
+    const name = fill(S.template, { title: d.title, author: d.author, uploader: d.author, id: d.id, height: "", fps: "", ext });
+    $("fname").textContent = `${name || "file"}.${ext}`;
+    document.querySelectorAll("#templates .chip").forEach((c) => c.classList.toggle("on", c.dataset.t === S.template));
+    $("go").disabled = false;
+  }
+
+  // -- lists -----------------------------------------------------------------------------------
+  const plural = (n, one, few, many) => { const a = n % 10, b = n % 100; return a === 1 && b !== 11 ? one : a >= 2 && a <= 4 && (b < 10 || b >= 20) ? few : many; };
+
+  function renderList() {
+    const d = S.info, audio = S.lmode === "audio";
+    const hasYoutube = d.entries.some((e) => e.kind !== "direct");
+    $("lg-mode").hidden = !hasYoutube;
+    $("lg-quality").hidden = audio || !hasYoutube;
+    $("lg-audio").hidden = !audio && hasYoutube;
+    $("lg-mp3").hidden = !(S.audio_format === "mp3" && (audio || !hasYoutube));
+    document.querySelectorAll(".mp3-any").forEach((b) => { b.disabled = !d.ffmpeg; });
+    if (!d.ffmpeg && S.audio_format === "mp3") S.audio_format = "m4a";
+    $("l-mode-note").textContent = d.entries.some((e) => e.kind === "track") ? "треки ищутся на YouTube" : "";
+    document.querySelectorAll("#list .seg").forEach(paintSeg);
+    document.querySelectorAll("#entries .entry").forEach((row) => {
+      const on = S.sel.has(+row.dataset.n);
+      row.classList.toggle("off", !on); row.querySelector("input").checked = on;
+    });
+    const n = S.sel.size;
+    $("l-count").textContent = `выбрано ${n} из ${d.entries.length}` + (d.count > d.entries.length ? ` (показаны первые ${d.entries.length} из ${d.count})` : "");
+    $("l-go").disabled = !n;
+    $("l-go").textContent = n ? `Скачать ${n} ${plural(n, "файл", "файла", "файлов")}` : "Ничего не выбрано";
+  }
+
+  function showList(d) {
+    S.sel = d.search ? new Set() : new Set(d.entries.map((e) => e.n));
+    const music = d.entries.filter((e) => e.audio).length > d.entries.length / 2;
+    S.lmode = music ? "audio" : "video";
+    $("l-cover").checked = music;
+    $("l-template").value = music ? "{author} - {title}" : "{title}";
+    $("l-site").textContent = d.site;
+    $("l-title").textContent = d.title;
+    $("l-sub").textContent = `${d.count} ${plural(d.count, "пункт", "пункта", "пунктов")}`;
+    $("entries").replaceChildren(...d.entries.map((e, i) => {
+      const row = document.createElement("label"); row.className = "entry"; row.dataset.n = e.n;
+      if (i < 30) row.style.animationDelay = i * 18 + "ms";
+      const cb = document.createElement("input"); cb.type = "checkbox"; cb.checked = S.sel.has(e.n);
+      cb.onchange = () => { if (cb.checked) S.sel.add(e.n); else S.sel.delete(e.n); render(); };
+      const pic = document.createElement("span"); pic.className = "pic";
+      if (e.thumbnail) pic.style.backgroundImage = `url("${encodeURI(e.thumbnail)}")`;
+      const tt = document.createElement("span"); tt.className = "tt";
+      const b = document.createElement("b"); b.textContent = e.title;
+      const s = document.createElement("span"); s.textContent = [e.author, e.site].filter(Boolean).join(" · ");
+      tt.append(b, s);
+      const dur = document.createElement("span"); dur.className = "d num"; dur.textContent = e.duration ? clock(e.duration) : "";
+      row.append(cb, pic, tt, dur); return row;
+    }));
+  }
+  $("l-all").onclick = () => { S.sel = new Set(S.info.entries.map((e) => e.n)); render(); };
+  $("l-none").onclick = () => { S.sel.clear(); render(); };
+  $("l-inv").onclick = () => { S.sel = new Set(S.info.entries.map((e) => e.n).filter((n) => !S.sel.has(n))); render(); };
+
   // -- search ----------------------------------------------------------------------------------
   function showError(msg) { const e = $("error"); e.hidden = !msg; e.textContent = msg || ""; if (msg) { e.style.animation = "none"; e.offsetHeight; e.style.animation = ""; } }
 
   async function find(url) {
     url = url.trim(); if (!url) return;
-    showError(""); $("result").hidden = true; $("loading").hidden = false; $("find").disabled = true;
+    showError(""); $("result").hidden = true; $("list").hidden = true; $("loading").hidden = false; $("find").disabled = true;
     document.body.classList.add("busy");
     try {
       const r = await fetch("/api/info?url=" + encodeURIComponent(url));
       const data = await r.json();
       if (!r.ok) throw new Error(data.error || r.statusText);
       S.info = data; S.url = url; S.height = null; S.fps = null; S.codec = "";
-      const img = $("thumb"); img.classList.remove("ok"); img.onload = () => img.classList.add("ok"); img.src = data.thumbnail;
-      $("len").textContent = clock(data.duration);
+      if (data.kind === "list") {
+        showList(data);
+        $("loading").hidden = true; $("list").hidden = false;
+        $("list").querySelectorAll(".rise").forEach((el) => { el.style.animation = "none"; el.offsetHeight; el.style.animation = ""; });
+        requestAnimationFrame(render);
+        return;
+      }
+      if (data.kind === "file") { S.fmode = "original"; $("cover").checked = false; }
+      if (data.track) { S.mode = "audio"; $("cover").checked = true; }
+      const img = $("thumb"); img.classList.remove("ok"); img.onload = () => img.classList.add("ok");
+      $("thumb-box").hidden = !data.thumbnail;
+      if (data.thumbnail) img.src = data.thumbnail; else img.removeAttribute("src");
+      $("len").textContent = data.duration ? clock(data.duration) : "";
+      $("len").hidden = !data.duration;
       $("title").textContent = data.title;
-      $("sub").textContent = [data.author, data.views ? data.views.toLocaleString("ru-RU") + " просмотров" : ""].filter(Boolean).join(" · ");
-      $("end").placeholder = clock(data.duration);
+      const via = data.track ? `${data.site} → YouTube` : data.site !== "YouTube" ? data.site : "";
+      $("sub").textContent = [data.author, via, data.views ? data.views.toLocaleString("ru-RU") + " просмотров" : ""].filter(Boolean).join(" · ");
+      $("end").placeholder = data.duration ? clock(data.duration) : "конец";
       if (!$("templates").childElementCount) {
         for (const t of data.templates) {
           const b = document.createElement("button"); b.type = "button"; b.className = "chip"; b.dataset.t = t;
@@ -526,11 +713,13 @@
                   unconfirmed: "Отправлено", aborted: "Прервано", failed: "Ошибка" };
 
   $("go").addEventListener("click", async () => {
-    const sec = section();
+    const file = S.info.kind === "file";
+    const sec = file ? null : section();
     const body = { url: S.url, mode: S.mode, container: S.container, audio_format: S.audio_format, codec: S.codec,
                    height: S.height, fps: S.fps, mp3_quality: S.mp3_quality, connections: S.connections,
                    tags: $("tags").checked, cover: $("cover").checked, template: S.template,
                    start: sec ? $("start").value : "", end: sec ? $("end").value : "" };
+    if (file) Object.assign(body, S.fmode === "mp3" ? { mode: "audio", audio_format: "mp3" } : { mode: "original" });
     $("go").disabled = true; $("go").textContent = "Готовлю…"; showError("");
     document.body.classList.add("busy");
     try {
@@ -543,9 +732,46 @@
     finally { $("go").disabled = false; $("go").textContent = "Скачать"; document.body.classList.remove("busy"); }
   });
 
+  // A list goes out three files at a time: each running download holds one of the six
+  // connections a browser keeps per site, and the status polling needs one too.
+  const queue = []; let running = 0; const PARALLEL = 3;
+  let failures = 0;
+  $("l-go").addEventListener("click", () => {
+    const base = { url: S.url, mode: S.lmode, container: "mp4", audio_format: S.audio_format, codec: "",
+                   height: S.lheight ? +S.lheight : null, fps: null, mp3_quality: S.mp3_quality, connections: S.connections,
+                   tags: $("l-tags").checked, cover: $("l-cover").checked, template: $("l-template").value || "{title}" };
+    for (const e of S.info.entries) {
+      if (!S.sel.has(e.n)) continue;
+      const body = Object.assign({}, base, { entry: e.n });
+      if (e.kind === "direct") body.mode = S.audio_format === "mp3" && (S.lmode === "audio" || e.audio) ? "audio" : "original";
+      queue.push({ body, title: e.title });
+    }
+    $("downloads").hidden = false;
+    $("downloads").scrollIntoView({ behavior: "smooth", block: "start" });
+    pump();
+  });
+  function pump() {
+    while (running < PARALLEL && queue.length) {
+      const item = queue.shift(); running++;
+      document.body.classList.add("busy");
+      runOne(item).finally(() => { running--; if (!running && !queue.length) document.body.classList.remove("busy"); pump(); });
+    }
+  }
+  async function runOne(item) {
+    try {
+      const r = await fetch("/api/jobs", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(item.body) });
+      const job = await r.json();
+      if (!r.ok) throw new Error(job.error || r.statusText);
+      addJob(job);
+      await new Promise((resolve) => { jobs.get(job.token).done = resolve; start(job); });
+    } catch (e) {
+      addJob({ token: "x" + (++failures), filename: item.title, state: "failed", error: e.message, sent: 0, size: null });
+    }
+  }
+
   function start(job) {
     const j = jobs.get(job.token);
-    if (j) j.data = Object.assign({}, j.data, { state: "ready" });
+    if (j) { j.data = Object.assign({}, j.data, { state: "ready" }); j.t0 = Date.now(); }
     const a = document.createElement("a"); a.href = job.download; a.download = job.filename; a.rel = "noopener";
     document.body.append(a); a.click(); a.remove();
     poll();
@@ -567,6 +793,8 @@
     const j = jobs.get(d.token); if (!j) return;
     j.data = d;
     const el = j.el;
+    const stale = d.state === "ready" && j.t0 && Date.now() - j.t0 > 25000;     // the browser blocked it
+    if (j.done && (FINAL.includes(d.state) || stale)) { j.done(); j.done = null; }
     el.className = "job " + d.state + (d.size == null && d.state === "streaming" ? " indeterminate" : "");
     const st = el.querySelector(".state");
     st.className = "state " + d.state;
@@ -581,14 +809,16 @@
     else if (d.state === "unconfirmed") r.textContent = "браузер не подтвердил получение";
     else if (d.error) r.textContent = d.error;
     else r.textContent = "";
-    el.querySelector(".actions").hidden = !["aborted", "failed"].includes(d.state);
+    el.querySelector(".actions").hidden = !d.download || !(["aborted", "failed"].includes(d.state) || stale);
+    el.querySelector(".actions button").textContent = d.state === "ready" ? "Скачать" : "Скачать снова";
   }
 
+  const FINAL = ["delivered", "unconfirmed", "failed", "aborted"];
   let polling = null;
   function poll() {
     if (polling) return;
     const tick = async () => {
-      const active = [...jobs.values()].filter((j) => !["delivered", "unconfirmed", "failed", "aborted"].includes(j.data.state));
+      const active = [...jobs.values()].filter((j) => !FINAL.includes(j.data.state));
       if (!active.length) { polling = null; return; }
       try {
         const r = await fetch("/api/status?t=" + active.map((j) => j.data.token).join(","));

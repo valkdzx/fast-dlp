@@ -1,9 +1,9 @@
-"""fast-dlp web: a YouTube downloader page.
+"""fast-dlp web: a downloader page for every link the command line takes.
 
 Nothing is stored on the server. A download is first planned (formats' headers and indexes
 only, a fraction of a second), which gives a one-time token, the file name and the exact
 size. GET /dl/<token> then streams the file straight from googlevideo through the muxer into
-the response. After the last byte the server closes its side and waits for the browser to
+the response (other sites: see targets.py). After the last byte the server closes its side and waits for the browser to
 close too: that FIN only comes once the browser has read everything, so the download is
 marked "delivered" on proof, not on hope. The page polls /api/status for its tokens.
 
@@ -19,11 +19,13 @@ import socket
 import sys
 import threading
 import time
+import types
 import urllib.parse
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
-from .. import formats as fmt, lyrics, net, section, stream, utils
+from .. import formats as fmt, lyrics, net, search, section, stream, utils
 from ..utils import FastDlpError
+from . import targets
 
 STATIC = os.path.join(os.path.dirname(os.path.abspath(__file__)), "static")
 VIDEO_TTL = 15 * 60          # player answers (stream URLs) are reused this long
@@ -31,6 +33,7 @@ JOB_TTL = 60 * 60            # a token lives this long
 CONFIRM_TIMEOUT = 60         # seconds to wait for the browser's FIN after the last byte
 
 TEMPLATES = ("{title}", "{author} - {title}", "{title} [{id}]", "{title} ({height}p)")
+LIST_LIMIT = 500             # rows of a list sent to the page
 MP3_QUALITIES = ("320k", "256k", "192k", "128k", "V0", "V2")
 CODECS = ("", "avc1", "av01", "vp09")
 
@@ -83,7 +86,9 @@ class App:
         self.ffmpeg = ffmpeg
         self.lock = threading.Lock()
         self.videos = {}             # id -> (time, Video)
+        self.targets = {}            # input text -> (time, list title, [job])
         self.jobs = {}
+        self.args = targets.cli_args()
 
     @property
     def extractor(self):
@@ -115,10 +120,102 @@ class App:
             for vid, (t, _) in list(self.videos.items()):
                 if now - t > VIDEO_TTL:
                     del self.videos[vid]
+            for key, hit in list(self.targets.items()):
+                if now - hit[0] > VIDEO_TTL:
+                    del self.targets[key]
+
+    def target(self, text, fresh=False):
+        """Input text -> (list title or None, [job]), expanded like `fast-dlp <text>`."""
+        key = (text or "").strip()
+        with self.lock:
+            hit = self.targets.get(key)
+        if hit and not fresh and time.time() - hit[0] < VIDEO_TTL:
+            return hit[1], hit[2]
+        vid = utils.extract_video_id(key)
+        if vid and not re.search(r"[?&]list=", key):
+            title, jobs = None, [{"source": "youtube", "video_id": vid, "playlist": None, "url": key}]
+        else:
+            title, jobs = targets.expand(key, self.args)
+        with self.lock:
+            self.targets[key] = (time.time(), title, jobs)
+        return title, jobs
+
+    def pick_job(self, body):
+        title, jobs = self.target(body.get("url"))
+        n = body.get("entry")
+        if n in (None, ""):
+            if title is not None:
+                raise FastDlpError("это список: выберите, что из него скачать")
+            return jobs[0]
+        n = _int(n, 0, len(jobs) - 1)
+        if n is None:
+            raise FastDlpError("нет такого пункта в списке")
+        return jobs[n]
+
+    def job_video(self, job, fresh=False):
+        """A YouTube job or a track (Spotify...) -> the YouTube Video to stream."""
+        vid = job.get("video_id") or job.get("_video_id")
+        if not vid:
+            from ..cli import resolve_spotify
+            video = resolve_spotify(self.extractor, job["track"], targets.site(job))
+            with self.lock:
+                job["_video_id"] = video.id
+                self.videos[video.id] = (time.time(), video)
+            vid = video.id
+        video = self.video(vid, fresh)
+        track = job.get("track")
+        if track:
+            video.title = track["title"]
+            video.author = ", ".join(track.get("artists") or []) or video.author
+        return video
+
+    def job_spec(self, job, fresh=False):
+        """The download spec of a direct job (None: a Yandex preview, played from YouTube)."""
+        with self.lock:
+            hit = job.get("_spec")
+        if hit and not fresh and time.time() - hit[0] < VIDEO_TTL:
+            return hit[1]
+        spec = targets.resolve_spec(job)
+        with self.lock:
+            if spec is None and job.get("fallback_track"):
+                job.update(source="match", track=job["fallback_track"])
+            job["_spec"] = (time.time(), spec)
+        return spec
 
     # -- API ------------------------------------------------------------------------------------
     def info(self, url):
-        video = self.video(url)
+        title, jobs = self.target(url)
+        if title is not None:
+            first = jobs[0]
+            searched = not search.looks_like_target(url.strip())
+            return {"kind": "list", "title": title, "count": len(jobs), "search": searched,
+                    "site": "все источники" if searched else targets.SITES.get(targets.site(first), targets.site(first)),
+                    "entries": [targets.entry(n, j) for n, j in enumerate(jobs[:LIST_LIMIT])],
+                    "ffmpeg": bool(self.ffmpeg), "templates": TEMPLATES}
+        job = jobs[0]
+        if targets.kind(job) == "direct":
+            spec = self.job_spec(job)
+            if spec is not None:
+                return self.file_info(job, spec)
+        return self.video_info(job)
+
+    def file_info(self, job, spec):
+        size = None
+        if spec["kind"] == "file":
+            try:
+                size, ranges = targets.probe(spec)
+                spec["size"], spec["ranges"] = size, ranges
+            except FastDlpError:
+                size = None
+        s = targets.site(job)
+        return {"kind": "file", "id": job["id"], "title": job["title"], "author": job.get("author") or "",
+                "site": targets.SITES.get(s, s), "duration": job.get("duration") or 0,
+                "thumbnail": job.get("cover_url"), "audio": bool(job.get("audio")),
+                "container": "HLS" if spec["kind"] == "hls" else (spec.get("ext") or "bin").upper(),
+                "size": size or None, "ffmpeg": bool(self.ffmpeg), "templates": TEMPLATES}
+
+    def video_info(self, job):
+        video = self.job_video(job)
         details = video.raw.get("videoDetails") or {}
         thumbs = (details.get("thumbnail") or {}).get("thumbnails") or []
         videos, audios = [], []
@@ -134,16 +231,20 @@ class App:
                 audios.append({"itag": f["itag"], "ext": fmt.ext(f), "codec": fmt.codec(f).split(".")[0],
                                "size": fmt.size(f), "bitrate": f.get("bitrate") or 0,
                                "drc": "drc" in f.get("xtags", "")})
-        return {"id": video.id, "title": video.title, "author": video.author, "duration": video.duration,
-                "views": int(details.get("viewCount") or 0),
-                "thumbnail": thumbs[-1]["url"] if thumbs else f"https://i.ytimg.com/vi/{video.id}/hqdefault.jpg",
+        track = job.get("track") or {}
+        s = targets.site(job)
+        thumb = thumbs[-1]["url"] if thumbs else f"https://i.ytimg.com/vi/{video.id}/hqdefault.jpg"
+        return {"kind": "video", "id": video.id, "title": video.title, "author": video.author,
+                "duration": video.duration, "views": 0 if track else int(details.get("viewCount") or 0),
+                "site": targets.SITES.get(s, s), "track": bool(track),
+                "thumbnail": track.get("cover") or thumb,
                 "videos": sorted(videos, key=lambda v: (-v["height"], -v["fps"], v["container"], v["codec"])),
                 "audios": sorted(audios, key=lambda a: -a["bitrate"]),
                 "ffmpeg": bool(self.ffmpeg), "templates": TEMPLATES}
 
     def options(self, body):
         o = {}
-        o["mode"] = body.get("mode") if body.get("mode") in ("video", "audio", "video_only") else "video"
+        o["mode"] = body.get("mode") if body.get("mode") in ("video", "audio", "video_only", "original") else "video"
         o["container"] = body.get("container") if body.get("container") in ("mp4", "webm") else "mp4"
         o["audio_format"] = body.get("audio_format") if body.get("audio_format") in ("m4a", "opus", "mp3") else "m4a"
         o["codec"] = body.get("codec") if body.get("codec") in CODECS else ""
@@ -170,14 +271,21 @@ class App:
 
     def create(self, body):
         opts = self.options(body)
-        video = self.video(body.get("url"))
-        meta = self.meta(video, opts) if opts["tags"] or opts["cover"] else None
+        job = self.pick_job(body)
+        if targets.kind(job) == "direct":
+            spec = self.job_spec(job)
+            if spec is not None:
+                return self.create_direct(job, spec, opts)
+        if opts["mode"] == "original":
+            opts["mode"] = "audio" if job.get("track") else "video"
+        video = self.job_video(job)
+        meta = self.meta(video, opts, job) if opts["tags"] or opts["cover"] else None
         try:
             output, chosen = stream.prepare(video, opts, meta, self.ffmpeg)
         except FastDlpError as e:
             if "HTTP 403" not in str(e):
                 raise
-            video = self.video(body.get("url"), fresh=True)         # stale URLs: ask once more
+            video = self.job_video(job, fresh=True)                 # stale URLs: ask once more
             output, chosen = stream.prepare(video, opts, meta, self.ffmpeg)
         v = chosen[0] if fmt.kind(chosen[0]) == "video" else None
         fields = {"title": video.title, "author": video.author, "uploader": video.author, "id": video.id,
@@ -190,10 +298,49 @@ class App:
             self.jobs[token] = job
         return job
 
-    def meta(self, video, opts):
+    def create_direct(self, job, spec, opts):
+        meta = None
+        if opts["mode"] == "audio" and opts["audio_format"] == "mp3" and (opts["tags"] or opts["cover"]):
+            meta = {}
+            if opts["tags"]:
+                meta = {k: v for k, v in (job.get("meta") or {}).items() if v}
+                meta.setdefault("title", job["title"])
+                if job.get("author"):
+                    meta.setdefault("artist", job["author"])
+            if opts["cover"] and job.get("cover_url"):
+                from ..cli import _image
+                cover, cover_mime = _image(job["cover_url"])
+                if cover:
+                    meta["cover"], meta["cover_mime"] = cover, cover_mime
+        try:
+            output = targets.direct_output(job, spec, opts, meta, self.ffmpeg)
+        except FastDlpError as e:
+            if "HTTP 403" not in str(e) and "HTTP 410" not in str(e):
+                raise
+            spec = self.job_spec(job, fresh=True)                   # the link expired: resolve again
+            output = targets.direct_output(job, spec, opts, meta, self.ffmpeg)
+        fields = {"title": job["title"], "author": job.get("author") or "", "uploader": job.get("author") or "",
+                  "id": job["id"], "height": "", "fps": "", "ext": stream.file_ext(output.ext)}
+        name = stream.filename(opts["template"], fields, output.ext)
+        token = secrets.token_urlsafe(16)
+        item = types.SimpleNamespace(id=job["id"], title=job["title"])
+        result = Job(token, item, opts, output, [], name)
+        with self.lock:
+            self.jobs[token] = result
+        return result
+
+    def meta(self, video, opts, job=None):
+        if job and job.get("track"):
+            from ..cli import build_meta
+            meta = build_meta(job, video, opts["cover"])
+            if not opts["tags"]:
+                meta = {k: v for k, v in meta.items() if k in ("cover", "cover_mime")}
+            return meta
         meta = {}
         if opts["tags"]:
             meta.update(title=video.title, artist=video.author, comment=f"https://youtu.be/{video.id}")
+            if job and job.get("playlist"):
+                meta.update(album=job["playlist"], track=job.get("position"))
             if opts["mode"] == "audio":
                 loud = ((video.raw.get("playerConfig") or {}).get("audioConfig") or {}).get("trackAbsoluteLoudnessLkfs")
                 if loud is not None:
@@ -408,7 +555,8 @@ def serve(host="127.0.0.1", port=8000, verbose=False):
 
 
 def main(argv=None):
-    p = argparse.ArgumentParser(prog="fast-dlp web", description="YouTube downloader page; streams, stores nothing")
+    p = argparse.ArgumentParser(prog="fast-dlp web", description="downloader page for every link fast-dlp "
+                                                                   "takes; streams, stores nothing")
     p.add_argument("--host", default="127.0.0.1", help="address to listen on (0.0.0.0 for the LAN)")
     p.add_argument("--port", type=int, default=8000)
     p.add_argument("-4", dest="ipv4", action="store_true", help="talk to YouTube over IPv4")
