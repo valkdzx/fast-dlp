@@ -15,11 +15,12 @@ import urllib.parse
 import urllib.request
 
 from . import formats as fmt
-from . import hls, mp3, mux, net, postprocess, section, stream, utils, ytmeta
+from . import hls, i18n, mp3, mux, net, postprocess, section, stream, utils, ytmeta
 from .download import Stream, download
 from .download import _Progress as download_progress
 from .extractor import Extractor
 from .oauth import TvAuth
+from .i18n import t
 from .utils import FastDlpError, err, warn
 
 from . import __version__  # noqa: F401  (one place: fast_dlp/__init__.py)
@@ -58,7 +59,7 @@ def build_parser():
     p = argparse.ArgumentParser(prog="fast-dlp", description="Fast YouTube downloader.",
                                 epilog=USAGE_EXTRA, formatter_class=argparse.RawDescriptionHelpFormatter)
     p.add_argument("urls", nargs="*", help="links (YouTube, Spotify, Yandex, VK, SoundCloud, TikTok, ...) or "
-                                           "plain words to search every source: fast-dlp исполнитель - название")
+                                           "plain words to search every source: fast-dlp artist - title")
     p.add_argument("-f", "--format", default="best",
                    help="best | bestaudio | bestvideo | ITAG | ITAG+ITAG | bv+ba (default: best)")
     p.add_argument("-q", "--max-height", type=int, help="highest video height, e.g. 1080")
@@ -143,6 +144,8 @@ def build_parser():
                           "itself when YouTube bot-checks the IPv6 address)")
     fam.add_argument("-6", "--force-ipv6", action="store_true", help="IPv6 only")
     p.add_argument("--no-progress", action="store_true")
+    p.add_argument("--lang", choices=["auto", "ru", "en"], default="auto",
+                   help="language of the picker and the download board (default: the system's)")
     p.add_argument("-v", "--verbose", action="store_true")
     p.add_argument("--version", action="version", version=f"fast-dlp {__version__}")
     return p
@@ -905,9 +908,9 @@ def _job_duration(job):
 
 def collection_title(jobs):
     site = {"spotify": "Spotify", "youtube": "YouTube", "match": "", "direct": ""}.get(jobs[0]["source"], "")
-    site = site or {"yandex": "Яндекс Музыка", "vk": "VK", "soundcloud": "SoundCloud", "tiktok": "TikTok",
+    site = site or {"yandex": t("site_yandex"), "vk": "VK", "soundcloud": "SoundCloud", "tiktok": "TikTok",
                     "pinterest": "Pinterest", "steam": "Steam"}.get(jobs[0].get("site"), jobs[0].get("site", ""))
-    return f"{site} · «{jobs[0].get('playlist') or ''}»"
+    return f"{site} · {t('quoted', s=jobs[0].get('playlist') or '')}"
 
 
 def wants_picker(jobs, args):
@@ -927,22 +930,22 @@ def pick_search(jobs, args, query, counts):
     taken as sound (default) or as video."""
     from . import search, tui
     o = {
-        "format": tui.Option("Формат звука", ["best", "opus", "m4a", "mp3"], args.audio_format,
-                             {"best": "как есть (лучшее)", "opus": "opus", "m4a": "m4a (AAC)", "mp3": "mp3"}),
-        "quality": tui.Option("Качество MP3", ["320k", "256k", "192k", "128k", "V0", "V2"], args.audio_quality,
+        "format": tui.Option(t("opt_audio_format"), ["best", "opus", "m4a", "mp3"], args.audio_format,
+                             {"best": t("as_is"), "opus": "opus", "m4a": "m4a (AAC)", "mp3": "mp3"}),
+        "quality": tui.Option(t("opt_mp3_quality"), ["320k", "256k", "192k", "128k", "V0", "V2"], args.audio_quality,
                               {"V0": "V0 (VBR ~245k)", "V2": "V2 (VBR ~190k)"},
                               visible=lambda opts: opts["format"].value == "mp3"),
-        "ytvideo": tui.Option("Видео с YouTube", ["audio", "video"], "video" if args.format != "best" else "audio",
-                              {"audio": "только звук", "video": "видео + звук"}),
-        "jobs": tui.Option("Параллельно", list(range(1, 9)), min(8, max(1, args.concurrent_jobs))),
-        "tags": tui.Option("Теги", [True, False], not args.no_metadata, {True: "да", False: "нет"}),
-        "cover": tui.Option("Обложка", [True, False], not args.no_cover, {True: "да", False: "нет"},
+        "ytvideo": tui.Option(t("opt_youtube_video"), ["audio", "video"], "video" if args.format != "best" else "audio",
+                              {"audio": t("audio_only"), "video": t("video_audio")}),
+        "jobs": tui.Option(t("opt_parallel"), list(range(1, 9)), min(8, max(1, args.concurrent_jobs))),
+        "tags": tui.Option(t("opt_tags"), [True, False], not args.no_metadata, {True: t("yes"), False: t("no")}),
+        "cover": tui.Option(t("opt_cover"), [True, False], not args.no_cover, {True: t("yes"), False: t("no")},
                             visible=lambda opts: opts["tags"].value),
     }
     items = [{"label": job_label(j),
-              "right": f"{search.LABELS.get(j.get('found_on'), '')}  {tui.fmt_duration(_job_duration(j))}".strip()}
+              "right": f"{search.label(j.get('found_on'))}  {tui.fmt_duration(_job_duration(j))}".strip()}
              for j in jobs]
-    result = tui.pick(f"Поиск «{query}» · {counts}", items, o, checked=[i == 0 for i in range(len(jobs))])
+    result = tui.pick(f"{t('search', q=query)} · {counts}", items, o, checked=[i == 0 for i in range(len(jobs))])
     if result is None:
         return None
     indices, values = result
@@ -972,26 +975,26 @@ def pick_jobs(jobs, args):
             fmt_values = ["video", "audio", "opus", "m4a", "mp3"]
             current = "mp3" if args.audio_format == "mp3" else (
                 args.audio_format if args.audio_format in ("opus", "m4a") else ("audio" if args.audio_only else "video"))
-            shown = {"video": "видео + звук", "audio": "только звук (лучший)", "opus": "звук opus",
-                     "m4a": "звук m4a", "mp3": "mp3"}
+            shown = {"video": t("video_audio"), "audio": t("audio_only_best"), "opus": t("audio_opus"),
+                     "m4a": t("audio_m4a"), "mp3": "mp3"}
         else:
             fmt_values = ["best", "opus", "m4a", "mp3"]
             current = args.audio_format
-            shown = {"best": "как есть (лучшее)", "opus": "opus", "m4a": "m4a (AAC)", "mp3": "mp3"}
-        o["format"] = tui.Option("Формат", fmt_values, current, shown)
+            shown = {"best": t("as_is"), "opus": "opus", "m4a": "m4a (AAC)", "mp3": "mp3"}
+        o["format"] = tui.Option(t("opt_format"), fmt_values, current, shown)
         if youtube:
-            o["height"] = tui.Option("Качество видео", [None, 2160, 1440, 1080, 720, 480, 360],
-                                     args.max_height, {None: "лучшее"} | {h: f"до {h}p" for h in (2160, 1440, 1080, 720, 480, 360)},
+            o["height"] = tui.Option(t("opt_video_quality"), [None, 2160, 1440, 1080, 720, 480, 360],
+                                     args.max_height, {None: t("best")} | {h: t("up_to", h=h) for h in (2160, 1440, 1080, 720, 480, 360)},
                                      visible=lambda opts: opts["format"].value == "video")
-        o["quality"] = tui.Option("Качество MP3", ["320k", "256k", "192k", "128k", "V0", "V2"], args.audio_quality,
+        o["quality"] = tui.Option(t("opt_mp3_quality"), ["320k", "256k", "192k", "128k", "V0", "V2"], args.audio_quality,
                                   {"V0": "V0 (VBR ~245k)", "V2": "V2 (VBR ~190k)"},
                                   visible=lambda opts: opts["format"].value == "mp3")
-    o["jobs"] = tui.Option("Параллельно", list(range(1, 9)), min(8, max(1, args.concurrent_jobs)))
-    o["tags"] = tui.Option("Теги", [True, False], not args.no_metadata, {True: "да", False: "нет"})
-    o["cover"] = tui.Option("Обложка", [True, False], not args.no_cover, {True: "да", False: "нет"},
+    o["jobs"] = tui.Option(t("opt_parallel"), list(range(1, 9)), min(8, max(1, args.concurrent_jobs)))
+    o["tags"] = tui.Option(t("opt_tags"), [True, False], not args.no_metadata, {True: t("yes"), False: t("no")})
+    o["cover"] = tui.Option(t("opt_cover"), [True, False], not args.no_cover, {True: t("yes"), False: t("no")},
                             visible=lambda opts: opts["tags"].value)
-    o["skip"] = tui.Option("Уже скачанные", [True, False], not args.force_overwrites,
-                           {True: "пропускать", False: "качать заново"})
+    o["skip"] = tui.Option(t("opt_existing"), [True, False], not args.force_overwrites,
+                           {True: t("skip"), False: t("redownload")})
     items = [{"label": job_label(j), "right": tui.fmt_duration(_job_duration(j))} for j in jobs]
     result = tui.pick(f"{collection_title(jobs)} · {len(jobs)}", items, o)
     if result is None:
@@ -1052,6 +1055,7 @@ def main(argv=None):
             return 0
         args = build_parser().parse_args(argv)
         utils.VERBOSE = args.verbose
+        i18n.set_language(args.lang)
         if not args.urls:
             build_parser().print_help()
             return 2
@@ -1133,7 +1137,7 @@ def main(argv=None):
                     print("[search] cancelled", file=sys.stderr)
                     return 0
                 chosen, job_args = picked
-                with_board(chosen, job_args, f"Поиск «{query}»")
+                with_board(chosen, job_args, t("search", q=query))
             else:
                 first = dict(found[0])
                 print(f"[search] taking the best match: {job_label(first)}", file=sys.stderr)

@@ -10,10 +10,18 @@ from . import playlist, spotify, utils, ytmusic
 from .utils import debug
 
 SOURCES = ("ytmusic", "spotify", "yandex", "youtube", "soundcloud")
-LABELS = {"ytmusic": "YT Music", "spotify": "Spotify", "yandex": "Яндекс", "youtube": "YouTube",
+LABELS = {"ytmusic": "YT Music", "spotify": "Spotify", "yandex": "Yandex", "youtube": "YouTube",
           "soundcloud": "SoundCloud"}
 _LINKISH = re.compile(r"^(?:https?://|www\.|(?:[\w-]+\.)+(?:com|ru|be|net|org|io|me|it|app|tv|by|kz|ua)(?:/|$)"
                       r"|ytsearch|spotify:|audio-?\d)", re.I)
+
+
+def label(source):
+    """The source's name in the picker, in the interface language."""
+    if source == "yandex":
+        from .i18n import t
+        return t("label_yandex")
+    return LABELS.get(source, "")
 
 
 def looks_like_target(text):

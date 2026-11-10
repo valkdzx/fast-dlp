@@ -15,6 +15,8 @@ import sys
 import threading
 import time
 
+from .i18n import t
+
 ESC = "\x1b["
 # Keys, normalised across platforms
 UP, DOWN, LEFT, RIGHT, HOME, END, PGUP, PGDN, ENTER, SPACE, CANCEL = (
@@ -250,19 +252,19 @@ class Picker:
 
     def lines(self, cols, rows):
         chosen = sum(self.checked)
-        head = [f"{BOLD}{self.title}{RESET}  {DIM}выбрано {chosen} из {len(self.items)}{RESET}",
-                f"{DIM}Пробел — отметить   ↑↓ — ходить   ←→ — менять параметр / листать   "
-                f"A все  N ничего  I инвертировать   Enter — скачать   Esc — отмена{RESET}",
-                f"{CYAN}─ Треки {'─' * max(0, cols - 9)}{RESET}"]
+        tracks, options = t("tracks"), t("options")
+        head = [f"{BOLD}{self.title}{RESET}  {DIM}{t('chosen', n=chosen, total=len(self.items))}{RESET}",
+                f"{DIM}{t('keys')}{RESET}",
+                f"{CYAN}─ {tracks} {'─' * max(0, cols - len(tracks) - 3)}{RESET}"]
         opts = self.visible_options()
-        foot = [f"{CYAN}─ Параметры {'─' * max(0, cols - 13)}{RESET}"]
+        foot = [f"{CYAN}─ {options} {'─' * max(0, cols - len(options) - 3)}{RESET}"]
         width = max(len(o.label) for _, o in opts) if opts else 0
         for j, (_, o) in enumerate(opts):
             row = len(self.items) + j
             line = f"   {o.label.ljust(width)}   ◀ {BOLD}{o.text()}{RESET} ▶"
             foot.append(REV + _strip(line) + RESET if row == self.cursor else line)
         if chosen == 0:
-            foot.append(f"{YELLOW}   ничего не выбрано — отметьте хотя бы один трек{RESET}")
+            foot.append(f"{YELLOW}   {t('none_chosen')}{RESET}")
         list_rows = max(3, rows - len(head) - len(foot))
         overflow = len(self.items) > list_rows
         if overflow:
@@ -285,8 +287,8 @@ class Picker:
             body.append(REV + _strip(text) + RESET if i == self.cursor else text)
         if overflow:
             above, below = self.top, len(self.items) - self.top - list_rows
-            body.append(f"{DIM}   {'↑ ' + str(above) + ' выше' if above else ''}"
-                        f"{'   ' if above and below else ''}{'↓ ещё ' + str(below) if below else ''}{RESET}")
+            body.append(f"{DIM}   {t('above', n=above) if above else ''}"
+                        f"{'   ' if above and below else ''}{t('below', n=below) if below else ''}{RESET}")
         return head + body + foot
 
 
@@ -368,11 +370,11 @@ class Board:
     def lines(self, cols, rows):
         counts = collections.Counter(self.state)
         spin = "⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏"[int(time.time() * 10) % 10]
-        head = [f"{BOLD}{self.title}{RESET}  {GREEN}{counts['done']} готово{RESET}  "
-                f"{YELLOW}{counts['working']} качается{RESET}  {DIM}{counts['queued']} в очереди{RESET}"
-                + (f"  {CYAN}{counts['skipped']} уже было{RESET}" if counts['skipped'] else "")
-                + (f"  {RED}{counts['failed']} ошибок{RESET}" if counts['failed'] else "")
-                + f"   {DIM}{time.time() - self.t0:.0f} с{RESET}",
+        head = [f"{BOLD}{self.title}{RESET}  {GREEN}{t('n_done', n=counts['done'])}{RESET}  "
+                f"{YELLOW}{t('n_working', n=counts['working'])}{RESET}  {DIM}{t('n_queued', n=counts['queued'])}{RESET}"
+                + (f"  {CYAN}{t('n_skipped', n=counts['skipped'])}{RESET}" if counts['skipped'] else "")
+                + (f"  {RED}{t('n_failed', n=counts['failed'])}{RESET}" if counts['failed'] else "")
+                + f"   {DIM}{t('seconds', n=f'{time.time() - self.t0:.0f}')}{RESET}",
                 f"{CYAN}{'─' * cols}{RESET}"]
         log_rows = min(6, max(2, rows // 4))
         list_rows = max(3, rows - len(head) - log_rows - 1)
@@ -386,7 +388,7 @@ class Board:
             sym = f"{YELLOW}{spin}{RESET}" if state == "working" else self.SYMBOLS[state]
             extra = ""
             if state == "working":
-                extra = f"{DIM}{time.time() - self.started[i]:.0f} с{RESET}"
+                extra = f"{DIM}{t('seconds', n=f'{time.time() - self.started[i]:.0f}')}{RESET}"
             elif self.note[i]:
                 extra = (RED if state == "failed" else DIM) + self.note[i] + RESET
             label_w = max(10, min(70, cols - 12 - num_w))
