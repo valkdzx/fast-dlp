@@ -1,0 +1,24 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" width="256" height="256">
+  <title>fast-dlp</title>
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#232838"/>
+      <stop offset="1" stop-color="#0E1016"/>
+    </linearGradient>
+    <linearGradient id="bolt" x1="0.3" y1="0" x2="0.7" y2="1">
+      <stop offset="0" stop-color="#FFD84D"/>
+      <stop offset="1" stop-color="#FF5A36"/>
+    </linearGradient>
+  </defs>
+  <rect width="256" height="256" rx="56" fill="url(#bg)"/>
+  <!-- speed lines -->
+  <g stroke="#FFFFFF" stroke-width="10" stroke-linecap="round">
+    <line x1="72" y1="70" x2="110" y2="70" opacity="0.85"/>
+    <line x1="58" y1="96" x2="92" y2="96" opacity="0.55"/>
+    <line x1="44" y1="122" x2="72" y2="122" opacity="0.3"/>
+  </g>
+  <!-- bolt: its lower point is the arrowhead of the download -->
+  <path d="M152 32 L86 134 H124 L106 200 L178 96 H138 Z" fill="url(#bolt)" stroke="url(#bolt)" stroke-width="6" stroke-linejoin="round"/>
+  <!-- the line it lands on -->
+  <rect x="64" y="212" width="128" height="14" rx="7" fill="#FFFFFF"/>
+</svg>

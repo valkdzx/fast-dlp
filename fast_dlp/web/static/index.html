@@ -1,0 +1,608 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>fast-dlp</title>
+<link rel="icon" href="/logo.svg" type="image/svg+xml">
+<style>
+  :root {
+    --bg: #000;
+    --fg: #fff;
+    --muted: rgba(255, 255, 255, .56);
+    --faint: rgba(255, 255, 255, .32);
+    --line: rgba(255, 255, 255, .12);
+    --line-strong: rgba(255, 255, 255, .28);
+    --surface: rgba(255, 255, 255, .04);
+    --surface-2: rgba(255, 255, 255, .08);
+    --ease: cubic-bezier(.2, .8, .2, 1);
+    --radius: 14px;
+  }
+  * { box-sizing: border-box; }
+  html { background: var(--bg); color-scheme: dark; }
+  body {
+    margin: 0; background: var(--bg); color: var(--fg);
+    font: 15px/1.5 system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+  main { width: min(640px, 100% - 32px); margin: 0 auto; padding: 72px 0 96px; }
+  ::selection { background: #fff; color: #000; }
+  .muted { color: var(--muted); }
+  .num { font-variant-numeric: tabular-nums; }
+
+  /* appearance */
+  @keyframes rise { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: none; } }
+  @keyframes fade { from { opacity: 0; } to { opacity: 1; } }
+  .rise { animation: rise .6s var(--ease) both; animation-delay: calc(var(--i, 0) * 60ms); }
+
+  /* header */
+  header { text-align: center; margin-bottom: 40px; }
+  .logo { width: 88px; height: 88px; display: block; margin: 0 auto 20px; }
+  .logo .bolt { transform-origin: 50% 50%; animation: bolt-in .9s var(--ease) both .1s; }
+  .logo .speed line { animation: speed 1.8s var(--ease) infinite; }
+  .logo .speed line:nth-child(2) { animation-delay: .12s; }
+  .logo .speed line:nth-child(3) { animation-delay: .24s; }
+  .logo .base { transform-origin: 50% 50%; animation: base-in .7s var(--ease) both .45s; }
+  body:not(.busy) .logo .speed line { animation-play-state: paused; }
+  @keyframes bolt-in { from { opacity: 0; transform: translateY(-18px) scale(.9); } to { opacity: 1; transform: none; } }
+  @keyframes base-in { from { transform: scaleX(0); } to { transform: none; } }
+  @keyframes speed { 0% { transform: translateX(0); opacity: 1; } 60% { transform: translateX(-14px); opacity: .2; } 100% { transform: translateX(0); opacity: 1; } }
+  h1 { font-size: 34px; letter-spacing: -.02em; margin: 0 0 8px; font-weight: 700; }
+  .lead { margin: 0 auto; max-width: 460px; color: var(--muted); }
+
+  /* search */
+  form.search { display: flex; gap: 8px; margin-bottom: 28px; }
+  input, button, select { font: inherit; color: inherit; }
+  .field {
+    flex: 1; min-width: 0; background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius);
+    padding: 14px 16px; outline: none; transition: border-color .25s, background .25s, box-shadow .25s;
+  }
+  .field::placeholder { color: var(--faint); }
+  .field:focus { border-color: var(--line-strong); background: var(--surface-2); box-shadow: 0 0 0 4px rgba(255,255,255,.06); }
+  .btn {
+    border: 0; border-radius: var(--radius); padding: 14px 22px; background: var(--fg); color: #000; font-weight: 600;
+    cursor: pointer; transition: transform .18s var(--ease), opacity .2s, box-shadow .25s; white-space: nowrap;
+  }
+  .btn:hover { box-shadow: 0 6px 28px rgba(255,255,255,.18); transform: translateY(-1px); }
+  .btn:active { transform: scale(.97); }
+  .btn:disabled { opacity: .4; cursor: default; box-shadow: none; transform: none; }
+  .btn.ghost { background: transparent; color: var(--fg); border: 1px solid var(--line-strong); }
+  .btn.big { width: 100%; padding: 18px; font-size: 17px; }
+  :focus-visible { outline: 2px solid #fff; outline-offset: 2px; }
+
+  .error { color: #fff; border: 1px solid var(--line-strong); background: var(--surface); border-radius: var(--radius);
+           padding: 12px 16px; margin-bottom: 24px; animation: rise .4s var(--ease) both; }
+  .error::before { content: "Ошибка. "; font-weight: 600; }
+
+  /* skeleton */
+  .skeleton { display: grid; gap: 12px; }
+  .sk { border-radius: 10px; background: linear-gradient(90deg, var(--surface) 0%, rgba(255,255,255,.1) 50%, var(--surface) 100%);
+        background-size: 200% 100%; animation: shimmer 1.2s linear infinite; }
+  @keyframes shimmer { from { background-position: 200% 0; } to { background-position: -200% 0; } }
+
+  /* video card */
+  .video { margin-bottom: 32px; }
+  .thumb { position: relative; aspect-ratio: 16 / 9; border-radius: 18px; overflow: hidden; background: var(--surface); }
+  .thumb img { width: 100%; height: 100%; object-fit: cover; display: block; opacity: 0; transform: scale(1.04);
+               transition: opacity .6s var(--ease), transform 1.2s var(--ease); }
+  .thumb img.ok { opacity: 1; transform: none; }
+  .thumb .len { position: absolute; right: 12px; bottom: 12px; background: rgba(0,0,0,.78); padding: 2px 8px; border-radius: 6px; font-size: 13px; }
+  .video h2 { font-size: 20px; line-height: 1.3; margin: 16px 0 4px; letter-spacing: -.01em; }
+
+  /* settings */
+  .group { padding: 20px 0; border-top: 1px solid var(--line); }
+  .label { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; margin-bottom: 12px; }
+  .label b { font-weight: 600; }
+  .label span { color: var(--muted); font-size: 13px; }
+
+  .seg { position: relative; display: flex; background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 4px; }
+  .seg button { position: relative; z-index: 1; flex: 1; border: 0; background: none; padding: 10px 8px; border-radius: 9px;
+                cursor: pointer; color: var(--muted); transition: color .25s; }
+  .seg button.on { color: #000; }
+  .seg button:disabled { opacity: .3; cursor: default; }
+  .seg .pill { position: absolute; z-index: 0; top: 4px; bottom: 4px; left: 0; border-radius: 9px; background: #fff;
+               transition: transform .35s var(--ease), width .35s var(--ease); }
+
+  .chips { display: grid; grid-template-columns: repeat(auto-fill, minmax(112px, 1fr)); gap: 8px; }
+  .chip { text-align: left; border: 1px solid var(--line); background: var(--surface); border-radius: 12px; padding: 10px 12px;
+          cursor: pointer; transition: background .25s, border-color .25s, color .25s, transform .18s var(--ease); }
+  .chip:hover { border-color: var(--line-strong); transform: translateY(-1px); }
+  .chip .t { display: block; font-weight: 600; }
+  .chip .s { display: block; font-size: 12px; color: var(--muted); transition: color .25s; }
+  .chip.on { background: #fff; color: #000; border-color: #fff; }
+  #templates { display: flex; flex-wrap: wrap; }
+  #templates .chip { padding: 8px 12px; }
+  .chip.on .s { color: rgba(0,0,0,.6); }
+
+  .row { display: flex; gap: 8px; align-items: center; }
+  .row .field { padding: 10px 12px; }
+  .switch { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 6px 0; cursor: pointer; }
+  .switch input { appearance: none; width: 44px; height: 26px; border-radius: 13px; background: var(--surface-2); border: 1px solid var(--line);
+                  position: relative; cursor: pointer; transition: background .25s, border-color .25s; flex: none; margin: 0; }
+  .switch input::after { content: ""; position: absolute; top: 3px; left: 3px; width: 18px; height: 18px; border-radius: 50%;
+                         background: var(--muted); transition: transform .3s var(--ease), background .25s; }
+  .switch input:checked { background: #fff; border-color: #fff; }
+  .switch input:checked::after { transform: translateX(18px); background: #000; }
+
+  .timeline { position: relative; height: 6px; border-radius: 3px; background: var(--surface-2); margin: 14px 0 4px; overflow: hidden; }
+  .timeline i { position: absolute; top: 0; bottom: 0; background: #fff; border-radius: 3px; transition: left .3s var(--ease), width .3s var(--ease); }
+  .collapse { display: grid; grid-template-rows: 0fr; transition: grid-template-rows .4s var(--ease), opacity .3s; opacity: 0; }
+  .collapse.open { grid-template-rows: 1fr; opacity: 1; }
+  .collapse > div { overflow: hidden; }
+
+  input[type=range] { width: 100%; accent-color: #fff; }
+  .preview { margin-top: 10px; font-size: 13px; color: var(--muted); word-break: break-all; }
+  .preview b { color: var(--fg); font-weight: 500; }
+
+  .summary { display: flex; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin: 24px 0 14px; }
+  .summary .size { font-size: 26px; font-weight: 700; letter-spacing: -.02em; }
+
+  /* downloads */
+  .downloads h3 { font-size: 15px; margin: 48px 0 12px; font-weight: 600; }
+  .job { border: 1px solid var(--line); background: var(--surface); border-radius: var(--radius); padding: 16px; margin-bottom: 10px;
+         animation: rise .5s var(--ease) both; }
+  .job .top { display: flex; justify-content: space-between; gap: 12px; align-items: flex-start; }
+  .job .name { font-weight: 500; word-break: break-word; }
+  .state { flex: none; font-size: 12px; padding: 3px 10px; border-radius: 999px; border: 1px solid var(--line-strong); color: var(--muted);
+           transition: background .3s, color .3s, border-color .3s; }
+  .state.delivered { background: #fff; color: #000; border-color: #fff; }
+  .bar { position: relative; height: 4px; border-radius: 2px; background: var(--surface-2); margin: 14px 0 8px; overflow: hidden; }
+  .bar i { position: absolute; left: 0; top: 0; bottom: 0; width: 0; background: #fff; border-radius: 2px; transition: width .35s linear; }
+  .job.streaming .bar i::after { content: ""; position: absolute; inset: 0;
+       background: linear-gradient(90deg, transparent, rgba(0,0,0,.35), transparent); background-size: 60px 100%; animation: sheen 1s linear infinite; }
+  .job.indeterminate .bar i { width: 30% !important; animation: slide 1.2s var(--ease) infinite; }
+  @keyframes sheen { from { background-position: -60px 0; } to { background-position: 200% 0; } }
+  @keyframes slide { from { transform: translateX(-100%); } to { transform: translateX(340%); } }
+  .job .meta { display: flex; justify-content: space-between; gap: 12px; font-size: 13px; color: var(--muted); flex-wrap: wrap; }
+  .job .actions { margin-top: 10px; }
+  .job .actions .btn { padding: 8px 14px; font-size: 13px; }
+  .check { width: 18px; height: 18px; vertical-align: -3px; margin-right: 6px; }
+  .check path { stroke-dasharray: 24; stroke-dashoffset: 24; animation: draw .5s var(--ease) forwards .1s; }
+  @keyframes draw { to { stroke-dashoffset: 0; } }
+
+  footer { margin-top: 64px; text-align: center; font-size: 13px; color: var(--faint); }
+  footer p { margin: 4px 0; }
+
+  [hidden] { display: none !important; }
+  @media (max-width: 480px) {
+    main { padding-top: 48px; }
+    h1 { font-size: 28px; }
+    form.search { flex-direction: column; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; }
+  }
+</style>
+</head>
+<body>
+<main>
+  <header class="rise">
+    <svg class="logo" viewBox="0 0 256 256" aria-hidden="true">
+      <defs>
+        <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#232838"/><stop offset="1" stop-color="#0E1016"/></linearGradient>
+        <linearGradient id="bolt" x1=".3" y1="0" x2=".7" y2="1"><stop offset="0" stop-color="#FFD84D"/><stop offset="1" stop-color="#FF5A36"/></linearGradient>
+      </defs>
+      <rect width="256" height="256" rx="56" fill="url(#bg)"/>
+      <g class="speed" stroke="#fff" stroke-width="10" stroke-linecap="round">
+        <line x1="72" y1="70" x2="110" y2="70" opacity=".85"/>
+        <line x1="58" y1="96" x2="92" y2="96" opacity=".55"/>
+        <line x1="44" y1="122" x2="72" y2="122" opacity=".3"/>
+      </g>
+      <path class="bolt" d="M152 32 L86 134 H124 L106 200 L178 96 H138 Z" fill="url(#bolt)" stroke="url(#bolt)" stroke-width="6" stroke-linejoin="round"/>
+      <rect class="base" x="64" y="212" width="128" height="14" rx="7" fill="#fff"/>
+    </svg>
+    <h1>fast-dlp</h1>
+    <p class="lead">Скачивание с YouTube до 4K. Файл собирается на лету и идёт к вам потоком: на сервере ничего не сохраняется.</p>
+  </header>
+
+  <form class="search rise" style="--i:2" id="search" autocomplete="off">
+    <input class="field" id="url" type="text" inputmode="url" placeholder="Ссылка на видео YouTube" aria-label="Ссылка на видео YouTube" autofocus>
+    <button class="btn" id="find" type="submit">Найти</button>
+  </form>
+
+  <div id="error" class="error" hidden></div>
+
+  <div id="loading" class="skeleton" hidden>
+    <div class="sk" style="aspect-ratio:16/9;border-radius:18px"></div>
+    <div class="sk" style="height:22px;width:80%"></div>
+    <div class="sk" style="height:16px;width:45%"></div>
+    <div class="sk" style="height:46px;margin-top:20px"></div>
+    <div class="sk" style="height:46px"></div>
+  </div>
+
+  <section id="result" hidden>
+    <div class="video rise">
+      <div class="thumb"><img id="thumb" alt=""><span class="len num" id="len"></span></div>
+      <h2 id="title"></h2>
+      <div class="muted" id="sub"></div>
+    </div>
+
+    <div class="group rise" style="--i:1">
+      <div class="label"><b>Что скачать</b></div>
+      <div class="seg" data-key="mode">
+        <button type="button" data-v="video">Видео со звуком</button>
+        <button type="button" data-v="audio">Только звук</button>
+        <button type="button" data-v="video_only">Только видео</button>
+      </div>
+    </div>
+
+    <div class="group rise" style="--i:2" id="g-container">
+      <div class="label"><b>Формат</b><span id="container-note"></span></div>
+      <div class="seg" data-key="container">
+        <button type="button" data-v="mp4">MP4</button>
+        <button type="button" data-v="webm">WebM</button>
+      </div>
+    </div>
+
+    <div class="group rise" style="--i:2" id="g-audio">
+      <div class="label"><b>Формат звука</b><span id="audio-note"></span></div>
+      <div class="seg" data-key="audio_format">
+        <button type="button" data-v="m4a">M4A</button>
+        <button type="button" data-v="opus">Opus</button>
+        <button type="button" data-v="mp3" id="mp3-btn">MP3</button>
+      </div>
+    </div>
+
+    <div class="group rise" style="--i:3" id="g-quality">
+      <div class="label"><b>Качество</b><span id="quality-note"></span></div>
+      <div class="chips" id="heights"></div>
+    </div>
+
+    <div class="group rise" style="--i:3" id="g-codec">
+      <div class="label"><b>Кодек видео</b><span id="codec-note"></span></div>
+      <div class="seg" data-key="codec">
+        <button type="button" data-v="">Авто</button>
+        <button type="button" data-v="avc1">H.264</button>
+        <button type="button" data-v="av01">AV1</button>
+      </div>
+    </div>
+
+    <div class="group rise" style="--i:3" id="g-mp3">
+      <div class="label"><b>Битрейт MP3</b><span>перекодирование через ffmpeg</span></div>
+      <div class="seg" data-key="mp3_quality">
+        <button type="button" data-v="320k">320</button>
+        <button type="button" data-v="256k">256</button>
+        <button type="button" data-v="192k">192</button>
+        <button type="button" data-v="128k">128</button>
+        <button type="button" data-v="V0">V0</button>
+        <button type="button" data-v="V2">V2</button>
+      </div>
+    </div>
+
+    <div class="group rise" style="--i:4">
+      <label class="switch"><span><b>Отрывок</b><br><span class="muted" style="font-size:13px">только нужная часть, без ffmpeg; режется по ключевым кадрам</span></span><input type="checkbox" id="cut"></label>
+      <div class="collapse" id="cut-box"><div>
+        <div class="row" style="margin-top:12px">
+          <input class="field num" id="start" placeholder="0:00" aria-label="Начало">
+          <span class="muted">—</span>
+          <input class="field num" id="end" placeholder="конец" aria-label="Конец">
+        </div>
+        <div class="timeline"><i id="tl"></i></div>
+        <div class="muted num" style="font-size:13px" id="cut-note"></div>
+      </div></div>
+    </div>
+
+    <div class="group rise" style="--i:5">
+      <div class="label"><b>Метаданные</b></div>
+      <label class="switch"><span>Теги: название, автор, ссылка<span id="rg-note"></span></span><input type="checkbox" id="tags" checked></label>
+      <label class="switch"><span>Обложка внутри файла</span><input type="checkbox" id="cover"></label>
+    </div>
+
+    <div class="group rise" style="--i:6">
+      <div class="label"><b>Имя файла</b></div>
+      <div class="chips" id="templates"></div>
+      <input class="field" id="template" style="width:100%;margin-top:8px;padding:10px 12px" spellcheck="false" aria-label="Шаблон имени">
+      <div class="preview">Поля: {title} {author} {id} {height} {fps} {ext}<br>Файл: <b id="fname"></b></div>
+    </div>
+
+    <div class="group rise" style="--i:7">
+      <div class="label"><b>Соединений с YouTube</b><span class="num" id="conn-v">16</span></div>
+      <input type="range" id="conn" min="1" max="32" value="16">
+    </div>
+
+    <div class="summary rise" style="--i:8">
+      <div><div class="size num" id="size">—</div><div class="muted" id="what"></div></div>
+    </div>
+    <button class="btn big rise" style="--i:9" id="go" type="button">Скачать</button>
+  </section>
+
+  <section class="downloads" id="downloads" hidden>
+    <h3>Загрузки</h3>
+    <div id="jobs"></div>
+  </section>
+
+  <footer>
+    <p>fast-dlp · InnerTube VISIONOS · встроенный муксер</p>
+    <p>Ссылка на скачивание одноразовая. Доставка подтверждается, когда браузер получил последний байт.</p>
+  </footer>
+</main>
+
+<script>
+(() => {
+  const $ = (id) => document.getElementById(id);
+  const MB = 1048576;
+  const S = {
+    info: null, url: "",
+    mode: "video", container: "mp4", audio_format: "m4a", codec: "", mp3_quality: "320k",
+    height: null, fps: null, connections: 16, template: "{title}",
+  };
+  const jobs = new Map();
+
+  const size = (n) => !n ? "0" : n >= 1024 * MB ? (n / 1024 / MB).toFixed(2) + " ГиБ" : n >= MB ? (n / MB).toFixed(n >= 100 * MB ? 0 : 1) + " МиБ" : Math.max(1, Math.round(n / 1024)) + " КиБ";
+  const clock = (s) => { s = Math.max(0, Math.round(s)); const h = Math.floor(s / 3600), m = Math.floor(s % 3600 / 60), x = String(s % 60).padStart(2, "0"); return h ? `${h}:${String(m).padStart(2, "0")}:${x}` : `${m}:${x}`; };
+  const parseTime = (t) => {
+    t = (t || "").trim().toLowerCase(); if (!t) return null;
+    if (t.includes(":")) return t.split(":").reverse().reduce((a, v, i) => a + parseFloat(v || 0) * 60 ** i, 0);
+    const m = t.match(/^(?:(\d+)h)?(?:(\d+)m)?(?:([\d.]+)s?)?$/); if (!m) return NaN;
+    return (+m[1] || 0) * 3600 + (+m[2] || 0) * 60 + (+m[3] || 0);
+  };
+  const codecName = { avc1: "H.264", av01: "AV1", vp09: "VP9", vp9: "VP9", mp4a: "AAC", opus: "Opus" };
+
+  // -- segmented controls with a sliding pill --------------------------------------------------
+  function initSeg(seg) {
+    const pill = document.createElement("span"); pill.className = "pill"; seg.prepend(pill);
+    seg.addEventListener("click", (e) => {
+      const b = e.target.closest("button"); if (!b || b.disabled) return;
+      S[seg.dataset.key] = b.dataset.v;
+      if (seg.dataset.key === "container") { S.codec = ""; }
+      if (seg.dataset.key === "mode") { $("cover").checked = S.mode === "audio"; }
+      render();
+    });
+  }
+  function paintSeg(seg) {
+    const val = S[seg.dataset.key];
+    let on = null;
+    seg.querySelectorAll("button").forEach((b) => { const hit = b.dataset.v === val; b.classList.toggle("on", hit); if (hit) on = b; });
+    const pill = seg.querySelector(".pill");
+    if (on && seg.offsetParent) { pill.style.width = on.offsetWidth + "px"; pill.style.transform = `translateX(${on.offsetLeft}px)`; pill.style.opacity = 1; }
+    else pill.style.opacity = 0;
+  }
+  document.querySelectorAll(".seg").forEach(initSeg);
+  addEventListener("resize", () => document.querySelectorAll(".seg").forEach(paintSeg));
+
+  // -- format choice: the same rules the server uses -------------------------------------------
+  const RANK = { av01: 3, vp09: 2, vp9: 2, avc1: 1 };
+  const vkey = (v) => [v.codec === S.codec ? 1 : 0, v.height, v.fps, RANK[v.codec] || 0, v.bitrate];
+  const cmp = (a, b) => { for (let i = 0; i < a.length; i++) if (a[i] !== b[i]) return a[i] - b[i]; return 0; };
+  const best = (list, key) => list.reduce((m, x) => (!m || cmp(key(x), key(m)) > 0 ? x : m), null);
+  function pickVideo() {
+    let pool = S.info.videos.filter((v) => v.container === S.container);
+    if (S.codec) pool = pool.filter((v) => v.codec === S.codec).length ? pool.filter((v) => v.codec === S.codec) : pool;
+    if (S.height) {
+      const exact = pool.filter((v) => v.height === S.height && (!S.fps || v.fps === S.fps));
+      pool = exact.length ? exact : pool.filter((v) => v.height <= S.height).length ? pool.filter((v) => v.height <= S.height) : pool;
+    }
+    return best(pool, vkey);
+  }
+  function pickAudio(ext) {
+    const pool = S.info.audios.filter((a) => !ext || a.ext === ext);
+    return best(pool.length ? pool : S.info.audios, (a) => [a.drc ? 0 : 1, a.bitrate]);
+  }
+  function chosen() {
+    if (!S.info) return [];
+    if (S.mode === "audio") return [pickAudio({ m4a: "m4a", opus: "webm", mp3: null }[S.audio_format])].filter(Boolean);
+    const v = pickVideo(); if (!v) return [];
+    return S.mode === "video_only" ? [v] : [v, pickAudio(S.container === "mp4" ? "m4a" : "webm")].filter(Boolean);
+  }
+  function section() {
+    if (!$("cut").checked) return null;
+    const a = parseTime($("start").value), b = parseTime($("end").value);
+    if (Number.isNaN(a) || Number.isNaN(b)) return { bad: true };
+    const dur = S.info.duration || 0;
+    const s = Math.max(0, a || 0), e = b == null ? dur : Math.min(dur || b, b);
+    return e > s ? { s, e } : { bad: true };
+  }
+
+  // -- render ----------------------------------------------------------------------------------
+  function render() {
+    if (!S.info) return;
+    const audio = S.mode === "audio";
+    $("g-container").hidden = audio;
+    $("g-quality").hidden = audio;
+    $("g-audio").hidden = !audio;
+    $("g-mp3").hidden = !(audio && S.audio_format === "mp3");
+    $("mp3-btn").disabled = !S.info.ffmpeg;
+    $("mp3-btn").title = S.info.ffmpeg ? "" : "на сервере нет ffmpeg";
+    if (!S.info.ffmpeg && S.audio_format === "mp3") S.audio_format = "m4a";
+
+    // heights for the container
+    const box = $("heights");
+    const pool = S.info.videos.filter((v) => v.container === S.container);
+    const seen = new Map();
+    for (const v of pool) { const k = `${v.height}/${v.fps}`; if (!seen.has(k)) seen.set(k, v); }
+    if (S.height && ![...seen.values()].some((v) => v.height === S.height && v.fps === S.fps)) { S.height = null; S.fps = null; }
+    box.replaceChildren(...[["auto", null]].concat([...seen.values()].map((v) => [v, v])).map(([v]) => {
+      const b = document.createElement("button"); b.type = "button"; b.className = "chip";
+      const t = document.createElement("span"); t.className = "t num";
+      const s = document.createElement("span"); s.className = "s num";
+      if (v === "auto") {
+        t.textContent = "Лучшее"; const top = pool[0]; s.textContent = top ? `${top.height}p${top.fps > 30 ? top.fps : ""}` : "—";
+        b.classList.toggle("on", !S.height);
+        b.onclick = () => { S.height = null; S.fps = null; render(); };
+      } else {
+        t.textContent = `${v.height}p${v.fps > 30 ? v.fps : ""}${v.hdr ? " HDR" : ""}`;
+        const sizes = pool.filter((x) => x.height === v.height && x.fps === v.fps).map((x) => x.size);
+        s.textContent = size(Math.max(...sizes));
+        b.classList.toggle("on", S.height === v.height && S.fps === v.fps);
+        b.onclick = () => { S.height = v.height; S.fps = v.fps; render(); };
+      }
+      b.append(t, s); return b;
+    }));
+
+    // codecs available for this height (MP4 only: WebM is always VP9)
+    const v = pickVideo();
+    const at = pool.filter((x) => !S.height || (x.height === S.height && (!S.fps || x.fps === S.fps)));
+    const codecs = new Set(at.map((x) => x.codec));
+    $("g-codec").hidden = audio || S.container !== "mp4" || codecs.size < 2;
+    document.querySelectorAll('[data-key="codec"] button').forEach((b) => { b.disabled = b.dataset.v && !codecs.has(b.dataset.v); });
+    if (S.codec && !codecs.has(S.codec)) S.codec = "";
+    $("codec-note").textContent = v && !S.codec ? `сейчас ${codecName[v.codec] || v.codec}` : "";
+    $("container-note").textContent = S.container === "mp4" ? "H.264 / AV1 + AAC" : "VP9 + Opus";
+    $("audio-note").textContent = { m4a: "AAC, без перекодирования", opus: "Opus в WebM, без перекодирования", mp3: "MP3 через ffmpeg" }[S.audio_format];
+    $("quality-note").textContent = v ? `${v.width}×${v.height}` : "";
+    $("rg-note").textContent = audio ? ", ReplayGain" : "";
+
+    document.querySelectorAll(".seg").forEach(paintSeg);
+
+    // section
+    $("cut-box").classList.toggle("open", $("cut").checked);
+    const sec = section(), dur = S.info.duration || 1;
+    if (sec && !sec.bad) {
+      $("tl").style.left = (sec.s / dur * 100) + "%"; $("tl").style.width = ((sec.e - sec.s) / dur * 100) + "%";
+      $("cut-note").textContent = `${clock(sec.s)} — ${clock(sec.e)} · ${clock(sec.e - sec.s)} из ${clock(dur)}`;
+    } else {
+      $("tl").style.left = "0"; $("tl").style.width = sec && sec.bad ? "0" : "100%";
+      $("cut-note").textContent = sec && sec.bad ? "Время: 1:20, 80 или 1m20s; конец позже начала" : "";
+    }
+
+    // summary
+    const parts = chosen();
+    let total = parts.reduce((a, f) => a + f.size, 0);
+    if (S.mode === "audio" && S.audio_format === "mp3") {
+      const kbps = { "320k": 320, "256k": 256, "192k": 192, "128k": 128, V0: 245, V2: 190 }[S.mp3_quality];
+      total = (S.info.duration || 0) * kbps * 125;
+    }
+    if (sec && !sec.bad) total *= (sec.e - sec.s) / dur;
+    const exact = !(S.mode === "audio" && S.audio_format === "mp3") && !(sec && !sec.bad);
+    $("size").textContent = parts.length ? (exact ? "" : "≈ ") + size(total) : "—";
+    const desc = parts.map((f) => f.height ? `${f.height}p${f.fps > 30 ? f.fps : ""} ${codecName[f.codec] || f.codec}` : `${codecName[f.codec] || f.codec} ${Math.round(f.bitrate / 1000)}k`);
+    const ext = S.mode === "audio" ? { m4a: "M4A", opus: "Opus (WebM)", mp3: "MP3 " + S.mp3_quality.replace("k", "") }[S.audio_format] : S.container.toUpperCase();
+    $("what").textContent = [ext, desc.join(" + ")].filter(Boolean).join(" · ");
+    $("go").disabled = !parts.length || (sec && sec.bad);
+
+    // filename preview
+    const top = parts.find((f) => f.height);
+    const fields = { title: S.info.title, author: S.info.author, uploader: S.info.author, id: S.info.id,
+                     height: top ? top.height : "audio", fps: top ? top.fps : "",
+                     ext: S.mode === "audio" ? { m4a: "m4a", opus: "webm", mp3: "mp3" }[S.audio_format] : S.container };
+    S.template = $("template").value || "{title}";
+    const name = S.template.replace(/\{(\w+)\}/g, (m, k) => (k in fields ? fields[k] : "NA")).replace(/[\\/:*?"<>|]/g, "_").trim();
+    $("fname").textContent = `${name || "video"}.${fields.ext}`;
+    document.querySelectorAll("#templates .chip").forEach((c) => c.classList.toggle("on", c.dataset.t === S.template));
+  }
+
+  // -- search ----------------------------------------------------------------------------------
+  function showError(msg) { const e = $("error"); e.hidden = !msg; e.textContent = msg || ""; if (msg) { e.style.animation = "none"; e.offsetHeight; e.style.animation = ""; } }
+
+  async function find(url) {
+    url = url.trim(); if (!url) return;
+    showError(""); $("result").hidden = true; $("loading").hidden = false; $("find").disabled = true;
+    document.body.classList.add("busy");
+    try {
+      const r = await fetch("/api/info?url=" + encodeURIComponent(url));
+      const data = await r.json();
+      if (!r.ok) throw new Error(data.error || r.statusText);
+      S.info = data; S.url = url; S.height = null; S.fps = null; S.codec = "";
+      const img = $("thumb"); img.classList.remove("ok"); img.onload = () => img.classList.add("ok"); img.src = data.thumbnail;
+      $("len").textContent = clock(data.duration);
+      $("title").textContent = data.title;
+      $("sub").textContent = [data.author, data.views ? data.views.toLocaleString("ru-RU") + " просмотров" : ""].filter(Boolean).join(" · ");
+      $("end").placeholder = clock(data.duration);
+      if (!$("templates").childElementCount) {
+        for (const t of data.templates) {
+          const b = document.createElement("button"); b.type = "button"; b.className = "chip"; b.dataset.t = t;
+          const s = document.createElement("span"); s.className = "t"; s.style.fontWeight = 500; s.style.fontSize = "13px"; s.textContent = t;
+          b.append(s); b.onclick = () => { $("template").value = t; render(); }; $("templates").append(b);
+        }
+        $("template").value = S.template;
+      }
+      $("loading").hidden = true; $("result").hidden = false;
+      $("result").querySelectorAll(".rise").forEach((el) => { el.style.animation = "none"; el.offsetHeight; el.style.animation = ""; });
+      requestAnimationFrame(render);
+    } catch (e) {
+      $("loading").hidden = true; showError(e.message);
+    } finally {
+      $("find").disabled = false; document.body.classList.remove("busy");
+    }
+  }
+  $("search").addEventListener("submit", (e) => { e.preventDefault(); find($("url").value); });
+  $("url").addEventListener("paste", () => setTimeout(() => find($("url").value), 0));
+  ["start", "end", "template"].forEach((id) => $(id).addEventListener("input", render));
+  $("cut").addEventListener("change", render);
+  $("conn").addEventListener("input", () => { S.connections = +$("conn").value; $("conn-v").textContent = S.connections; });
+
+  // -- download --------------------------------------------------------------------------------
+  const STATE = { ready: "Готовится", streaming: "Передаётся", confirming: "Подтверждение", delivered: "Доставлено",
+                  unconfirmed: "Отправлено", aborted: "Прервано", failed: "Ошибка" };
+
+  $("go").addEventListener("click", async () => {
+    const sec = section();
+    const body = { url: S.url, mode: S.mode, container: S.container, audio_format: S.audio_format, codec: S.codec,
+                   height: S.height, fps: S.fps, mp3_quality: S.mp3_quality, connections: S.connections,
+                   tags: $("tags").checked, cover: $("cover").checked, template: S.template,
+                   start: sec ? $("start").value : "", end: sec ? $("end").value : "" };
+    $("go").disabled = true; $("go").textContent = "Готовлю…"; showError("");
+    document.body.classList.add("busy");
+    try {
+      const r = await fetch("/api/jobs", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+      const job = await r.json();
+      if (!r.ok) throw new Error(job.error || r.statusText);
+      addJob(job);
+      start(job);
+    } catch (e) { showError(e.message); }
+    finally { $("go").disabled = false; $("go").textContent = "Скачать"; document.body.classList.remove("busy"); }
+  });
+
+  function start(job) {
+    const j = jobs.get(job.token);
+    if (j) j.data = Object.assign({}, j.data, { state: "ready" });
+    const a = document.createElement("a"); a.href = job.download; a.download = job.filename; a.rel = "noopener";
+    document.body.append(a); a.click(); a.remove();
+    poll();
+  }
+
+  function addJob(job) {
+    const el = document.createElement("div"); el.className = "job";
+    el.innerHTML = `<div class="top"><div class="name"></div><span class="state"></span></div>
+      <div class="bar"><i></i></div><div class="meta num"><span class="l"></span><span class="r"></span></div>
+      <div class="actions" hidden><button class="btn ghost" type="button">Скачать снова</button></div>`;
+    el.querySelector(".name").textContent = job.filename;
+    el.querySelector(".actions button").onclick = () => start(jobs.get(job.token).data);
+    $("jobs").prepend(el); $("downloads").hidden = false;
+    jobs.set(job.token, { el, data: job });
+    paintJob(job);
+  }
+
+  function paintJob(d) {
+    const j = jobs.get(d.token); if (!j) return;
+    j.data = d;
+    const el = j.el;
+    el.className = "job " + d.state + (d.size == null && d.state === "streaming" ? " indeterminate" : "");
+    const st = el.querySelector(".state");
+    st.className = "state " + d.state;
+    if (d.state === "delivered") st.innerHTML = '<svg class="check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>Доставлено';
+    else st.textContent = STATE[d.state] || d.state;
+    const pct = d.size ? Math.min(100, d.sent / d.size * 100) : (["delivered", "unconfirmed", "confirming"].includes(d.state) ? 100 : 0);
+    el.querySelector(".bar i").style.width = pct + "%";
+    const l = el.querySelector(".l"), r = el.querySelector(".r");
+    l.textContent = d.size ? `${size(d.sent)} из ${size(d.size)}` : d.sent ? size(d.sent) : "";
+    if (d.state === "streaming") r.textContent = d.speed ? size(d.speed) + "/с" : "";
+    else if (d.state === "delivered") r.textContent = d.elapsed != null ? `за ${d.elapsed.toFixed(1)} с` : "";
+    else if (d.state === "unconfirmed") r.textContent = "браузер не подтвердил получение";
+    else if (d.error) r.textContent = d.error;
+    else r.textContent = "";
+    el.querySelector(".actions").hidden = !["aborted", "failed"].includes(d.state);
+  }
+
+  let polling = null;
+  function poll() {
+    if (polling) return;
+    const tick = async () => {
+      const active = [...jobs.values()].filter((j) => !["delivered", "unconfirmed", "failed", "aborted"].includes(j.data.state));
+      if (!active.length) { polling = null; return; }
+      try {
+        const r = await fetch("/api/status?t=" + active.map((j) => j.data.token).join(","));
+        const data = await r.json();
+        for (const [t, d] of Object.entries(data)) if (d) paintJob(d);
+      } catch (e) { /* the server may be restarting: keep trying */ }
+      polling = setTimeout(tick, 400);
+    };
+    polling = setTimeout(tick, 150);
+  }
+
+  const q = new URLSearchParams(location.search).get("url");
+  if (q) { $("url").value = q; find(q); }
+})();
+</script>
+</body>
+</html>

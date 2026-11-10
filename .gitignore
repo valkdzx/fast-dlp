@@ -1,0 +1,49 @@
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+build/
+dist/
+
+# downloads in progress / leftovers
+*.part
+*.mux
+
+# secrets: never commit an account session or keys
+cookies.txt
+*.cookies
+spotify.json
+oauth.json
+
+yandex.json
+vk.json
+steam.json
+
+# local tools (ffmpeg.exe etc.)
+bin/
+
+# downloaded media and side files: never commit what fast-dlp produced
+*.mp4
+*.webm
+*.mkv
+*.m4a
+*.mp3
+*.opus
+*.aac
+*.ts
+*.flac
+*.ogg
+*.jpg
+*.jpeg
+*.png
+*.webp
+*.gif
+*.lrc
+*.srt
+*.vtt
+*.m3u8
+*.info.json
+*.description
+*.comments.json
+.fast-dlp-sync.json
+archive.txt
