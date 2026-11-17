@@ -68,3 +68,21 @@ class BackendTest(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class ResolveTest(unittest.TestCase):
+    """A Spotify track goes to YouTube through cli.resolve_spotify (CLI and web alike)."""
+
+    def test_completes_then_finds_on_youtube(self):
+        from fast_dlp import cli, ytmusic
+        track = {"id": "TrackIdTrackIdTrackId1", "title": "Track One", "artists": ["Artist Name"], "duration": 213}
+        found = mock.Mock(id="vvvvvvvvvvv", title="yt title", author="yt author")
+        extractor = mock.Mock()
+        extractor.extract.return_value = found
+        cand = {"video_id": "vvvvvvvvvvv", "title": "Track One", "artists": ["Artist Name"]}
+        with mock.patch.object(spotify.Spotify, "complete") as complete, \
+                mock.patch.object(ytmusic, "candidates", return_value=iter([(cand, "isrc")])):
+            video = cli.resolve_spotify(extractor, track, "spotify")
+        complete.assert_called_once_with(track)
+        self.assertIs(video, found)
+        self.assertEqual((video.title, video.author), ("Track One", "Artist Name"))

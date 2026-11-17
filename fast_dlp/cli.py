@@ -349,7 +349,7 @@ MAX_SPOTIFY_CANDIDATES = 8
 
 def resolve_spotify(extractor, track, site="spotify"):
     """Track metadata (Spotify, Yandex...) -> YouTube video, best candidate that plays."""
-    from . import ytmusic
+    from . import spotify, ytmusic
     t0 = time.time()
     if site == "spotify":
         spotify.Spotify().complete(track)          # playlist items: cover, date, ISRC
