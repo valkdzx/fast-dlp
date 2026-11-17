@@ -4,31 +4,34 @@
 
 <h1 align="center">fast-dlp</h1>
 
+<p align="center"><b>English</b> · <a href="https://github.com/valkdzx/fast-dlp/blob/main/README.ru.md">Русский</a></p>
+
 <p align="center">
-  Быстрая альтернатива yt-dlp. Чистый Python, без зависимостей.<br>
-  YouTube · Spotify · Яндекс Музыка · SoundCloud · TikTok · VK · Pinterest · Pornhub · Steam Workshop
+  A fast alternative to yt-dlp. Pure Python, no dependencies.<br>
+  YouTube · Spotify · Yandex Music · SoundCloud · TikTok · VK · Pinterest · Pornhub · Steam Workshop
 </p>
 
-- **Скорость:** 4K-видео на 345 МиБ скачивается за 7.3 с (~47 МиБ/с).
-- **Без ffmpeg:** видео и звук склеиваются встроенным муксером меньше чем за секунду.
-- **Музыка:** теги, обложки, тексты песен и ReplayGain пишутся сами.
-- **Поиск:** один запрос сразу по всем источникам.
-- **Экран выбора:** треки отмечаются в терминале, качаются параллельно.
+- **Speed:** a 345 MiB 4K video downloads in 7.3 s (~47 MiB/s).
+- **No ffmpeg:** video and audio are joined by a built-in muxer in under a second.
+- **Music:** tags, cover art, lyrics and ReplayGain are written automatically.
+- **Search:** one query searches every source at once.
+- **Picker:** tick tracks in the terminal; they download in parallel.
 
 ---
 
-## Установка
+## Install
 
-Нужен Python 3.9+.
+Requires Python 3.9+.
 
 ```
 pip install fast-dlp
 ```
 
-Обновление: `pip install -U fast-dlp`. Чтобы команда была изолирована от остальных
-пакетов, можно поставить через pipx: `pipx install fast-dlp`.
+Update: `pip install -U fast-dlp` (if pip keeps seeing the old version, add
+`--no-cache-dir`). To keep the command isolated from other packages, install it with pipx:
+`pipx install fast-dlp`.
 
-Из исходников:
+From source:
 
 ```
 git clone https://github.com/valkdzx/fast-dlp
@@ -36,145 +39,189 @@ cd fast-dlp
 pip install -e .
 ```
 
-Без установки: `py -m fast_dlp ...` или `fast-dlp.cmd ...` из папки проекта.
+Without installing: `py -m fast_dlp ...` or `fast-dlp.cmd ...` from the project folder.
 
-Необязательные программы:
-
-- **ffmpeg** — только для MP3 и смешанных контейнеров;
-- **Deno, Node.js или Bun** — только для возрастных видео через `login`.
-
-## Примеры
+**If `fast-dlp` is "not recognized as a command".** pip puts `fast-dlp.exe` into Python's
+`Scripts` folder, which is often not on PATH: Python installed without "Add python.exe to
+PATH", `pip install --user`, or Python from the Microsoft Store. Run once
 
 ```
-fast-dlp https://youtu.be/VIDEO_ID                  # лучшее видео + звук
-fast-dlp https://youtu.be/VIDEO_ID -q 1080          # не выше 1080p
-fast-dlp https://youtu.be/VIDEO_ID -x               # только звук
+python -m fast_dlp path
+```
+
+or just any download through `python -m fast_dlp ...`: fast-dlp adds that folder to your
+user PATH itself, and plain `fast-dlp` works in a new terminal window. This happens once;
+`FAST_DLP_NO_PATH=1` keeps PATH untouched, and inside a virtualenv it is never changed. On Linux and macOS fast-dlp prints the line to
+add to `~/.profile`.
+
+Optional programs:
+
+- **ffmpeg** — only for MP3 and mixed containers;
+- **Deno, Node.js or Bun** — only for age-restricted videos through `login`.
+
+## Examples
+
+```
+fast-dlp https://youtu.be/VIDEO_ID                  # best video + audio
+fast-dlp https://youtu.be/VIDEO_ID -q 1080          # up to 1080p
+fast-dlp https://youtu.be/VIDEO_ID -x               # audio only
 fast-dlp https://youtu.be/VIDEO_ID --audio-format mp3
-fast-dlp https://youtu.be/VIDEO_ID -F               # список форматов
-fast-dlp https://youtu.be/VIDEO_ID -f 137+140       # конкретные itag
-fast-dlp https://youtu.be/VIDEO_ID -g               # вывести прямые ссылки
-fast-dlp https://open.spotify.com/track/TRACK_ID    # трек Spotify
-fast-dlp https://open.spotify.com/album/ALBUM_ID    # альбом, экран выбора
+fast-dlp https://youtu.be/VIDEO_ID -F               # list formats
+fast-dlp https://youtu.be/VIDEO_ID -f 137+140       # exact itags
+fast-dlp https://youtu.be/VIDEO_ID -g               # print stream URLs
+fast-dlp https://open.spotify.com/track/TRACK_ID    # a Spotify track
+fast-dlp https://open.spotify.com/album/ALBUM_ID    # an album, with the picker
 fast-dlp "https://www.youtube.com/playlist?list=PLAYLIST_ID"
-fast-dlp исполнитель - название                     # поиск по всем источникам
+fast-dlp artist - title                             # search every source
 fast-dlp URL -N 32 -P D:\Video -o "{author} - {title}.{ext}"
-fast-dlp web                                        # сайт-загрузчик на http://127.0.0.1:8000
+fast-dlp web                                        # downloader website at http://127.0.0.1:8000
 ```
 
 ---
 
-## Сайт-загрузчик
+## Downloader website
 
 ```
-fast-dlp web                         # http://127.0.0.1:8000
-fast-dlp web --host 0.0.0.0 --port 8080   # доступ из локальной сети
+fast-dlp web                              # http://127.0.0.1:8000
+fast-dlp web --host 0.0.0.0 --port 8080   # reachable from the local network
 ```
 
-Чёрная страница: вставляете ссылку, выбираете параметры, нажимаете «Скачать».
+A black page: paste a link, pick the options, press "Download". The page follows the
+browser's language (English or Russian); the RU · EN switch in the corner remembers your
+choice, and server messages come in the same language.
 
-Сайт принимает всё то же, что `fast-dlp <ссылка>`:
+The site takes everything `fast-dlp <link>` takes:
 
-- YouTube: видео, плейлисты, каналы, `ytsearch:`;
-- Spotify и Яндекс Музыка: треки, альбомы, плейлисты (звук ищется на YouTube, теги и обложка берутся из источника);
+- YouTube: videos, playlists, channels, `ytsearch:`;
+- Spotify and Yandex Music: tracks, albums, playlists (the audio is found on YouTube; tags
+  and cover art come from the source);
 - VK, SoundCloud, TikTok, Pinterest, Pornhub;
-- прямые ссылки на файлы и `.m3u8`;
-- просто слова: тогда ищется по всем источникам.
+- direct links to files and `.m3u8`;
+- plain words: then every source is searched.
 
-Списки (плейлист, альбом, поиск) показываются с галочками. Отмеченные пункты качаются по
-три одновременно, у каждого своя одноразовая ссылка. Файлы с других сайтов идут к вам
-как есть: прямой файл качается параллельно по диапазонам, а HLS по сегментам по порядку.
-С ffmpeg на сервере любой из них можно сразу получить в MP3. Steam Workshop работает
-через steamcmd, поэтому он есть только в командной строке.
+Lists (playlist, album, search) come with checkboxes. The ticked items download three at a
+time, each with its own one-time link. Files from other sites reach you as they are: a
+direct file is fetched in parallel ranges, HLS segment by segment, in order. With ffmpeg on
+the server any of them can be turned into MP3 on the way. Steam Workshop goes through
+steamcmd, so it is command line only.
 
-Параметры для YouTube:
+Options for YouTube:
 
-- что скачать: видео со звуком, только звук или только видео;
-- формат: MP4 (H.264 / AV1 + AAC) или WebM (VP9 + Opus); для звука M4A, Opus или MP3;
-- качество от 144p до 4K, с размером каждого варианта;
-- кодек и битрейт MP3;
-- отрывок по времени;
-- теги, обложка, ReplayGain;
-- шаблон имени файла;
-- число соединений с YouTube.
+- what to get: video with audio, audio only or video only;
+- format: MP4 (H.264 / AV1 + AAC) or WebM (VP9 + Opus); for audio M4A, Opus or MP3;
+- quality from 144p to 4K, with the size of each variant;
+- codec and MP3 bitrate;
+- a time section;
+- tags, cover art, ReplayGain;
+- a file name template;
+- the number of connections.
 
-**Сервер ничего не сохраняет.** Файл передаётся потоком (HTTP streaming):
+**Nothing is stored on the server.** The file is streamed (HTTP streaming):
 
-1. Сначала скачиваются только заголовки и оглавления форматов (`sidx` / `Cues`). По ним
-   заранее рассчитывается весь файл: новый заголовок, порядок фрагментов и точный размер,
-   поэтому браузер сразу видит `Content-Length` и показывает прогресс.
-2. Фрагменты качаются с googlevideo параллельно, в ограниченном окне памяти (~80 МиБ на
-   загрузку). На лету правятся номера дорожек и времена, и всё сразу пишется в ответ.
-   Результат побайтно совпадает с файлом, который склеил бы встроенный муксер.
-3. MP3 кодируется ffmpeg прямо из потока и передаётся частями (`Transfer-Encoding: chunked`).
+1. First only the formats' headers and indexes (`sidx` / `Cues`) are fetched. From them the
+   whole file is planned ahead: a new header, the fragment order and the exact size, so the
+   browser sees `Content-Length` right away and shows progress.
+2. Fragments are fetched from googlevideo in parallel, within a bounded memory window
+   (~80 MiB per download). Track numbers and timestamps are patched on the fly and
+   everything goes straight into the response. The result is byte-identical to the file the
+   built-in muxer would produce.
+3. MP3 is encoded by ffmpeg straight from the stream and sent in chunks
+   (`Transfer-Encoding: chunked`).
 
-**Подтверждение доставки.** После последнего байта сервер закрывает свою сторону соединения
-и ждёт, пока браузер закроет свою. Браузер закрывает соединение только после того, как
-прочитал всё, поэтому файл помечается «Доставлено» только при настоящем подтверждении.
+**Delivery confirmation.** After the last byte the server closes its side of the
+connection and waits for the browser to close its side. A browser closes only after it has
+read everything, so a file is marked "Delivered" only on real confirmation.
 
-Другие исходы:
+Other outcomes:
 
-- сброс соединения означает «Прервано», и ту же ссылку можно открыть снова;
-- если браузер молчит 60 с, статус будет «Отправлено».
+- a connection reset means "Stopped", and the same link can be opened again;
+- if the browser stays silent for 60 s, the status is "Sent".
 
-Ссылка на скачивание одноразовая и живёт час. Страница следит за статусом через
+A download link is one-time and lives an hour. The page follows the status through
 `/api/status`.
 
-| Запрос | Что делает |
+| Request | What it does |
 |---|---|
-| `GET /api/info?url=` | название, длительность, все форматы с размерами |
-| `POST /api/jobs` | параметры → токен, имя файла, точный размер |
-| `GET /dl/<токен>` | сам файл, потоком |
-| `GET /api/status?t=a,b` | состояние загрузок: передано байт, скорость, статус |
+| `GET /api/info?url=` | title, duration, every format with its size; or a list; or a file |
+| `POST /api/jobs` | options (+ `entry` for a list item) → token, file name, exact size |
+| `GET /dl/<token>` | the file itself, streamed |
+| `GET /api/status?t=a,b` | download states: bytes sent, speed, status |
 
-Замер: 4K-видео на 232 МиБ доходит до браузера за 3.8 с (~60 МиБ/с).
+Send `X-Lang: en` or `X-Lang: ru` to choose the language of error messages.
 
-## Почему быстро
+Measured: a 232 MiB 4K video reaches the browser in 3.8 s (~60 MiB/s).
 
-- **Один запрос к API.** Нет загрузки watch-страницы и base.js: InnerTube-клиент `VISIONOS`
-  отдаёт прямые ссылки (до 4K, без подписи и без `n`-параметра) примерно за 0.25 с.
-- **Параллельная загрузка.** Файл качается в 16 потоков, у каждого постоянное
-  HTTPS-соединение.
-- **Куски под скорость сети.** Каждое соединение замеряет свою скорость и берёт следующий
-  кусок примерно на 2 секунды загрузки:
-  - на 60 Мбит/с это ~1 МиБ;
-  - на гигабите 8 МиБ, это потолок: googlevideo режет скорость на диапазонах больше ~10 МБ;
-  - к концу файла куски дробятся, чтобы все соединения закончили вместе.
-- **Сразу в готовый файл.** Видео и звук YouTube качаются не в `.part`-файлы с последующей
-  склейкой. По оглавлениям форматов (`sidx` / `Cues`) итоговый файл рассчитывается заранее,
-  и каждый кусок пишется прямо на своё место. После загрузки правятся только заголовки
-  фрагментов (несколько КиБ). Каждый байт скачивается и пишется на диск один раз.
-- **Без записи нулей.** Windows при увеличении файла физически пишет нули: 3 ГБ нулей
-  перед загрузкой выглядят как «фоновая закачка». Файл создаётся разреженным (NTFS
-  sparse), и его размер задаётся мгновенно.
-- **MP3 без промежуточного файла.** Звук идёт из сети прямо в ffmpeg.
-- **Без перезапуска.** Протухшую ссылку (HTTP 403) обновляет новый запрос к `/player`, и
-  загрузка продолжается с того же места.
-
-## IPv4 и IPv6
-
-YouTube проверяет каждый адрес отдельно. У домашнего подключения общий IPv4-адрес, а у каждого
-устройства свой IPv6, и Windows по умолчанию предпочитает IPv6. Если на IPv6-адрес YouTube
-отвечает bot-check («Sign in to confirm you're not a bot»), fast-dlp сам переключает весь
-процесс на IPv4 и запоминает это на 6 часов (`%LOCALAPPDATA%\fast-dlp\route.json`).
-Переключается весь процесс сразу, потому что ссылки на поток привязаны к адресу, с которого
-их запросили. Флаги `-4` / `-6` задают семейство адресов вручную.
-
-## Возрастные видео
-
-Если VISIONOS отвечает `LOGIN_REQUIRED`, fast-dlp переходит на клиент `TVHTML5` (Tizen,
-версия `5.<дата>`) с OAuth-токеном аккаунта:
-
-- client_id и client_secret берутся из бандла `youtube.com/tv` (кэш 6 ч);
-- refresh token меняется на access token (кэш до истечения срока);
-- `signatureCipher` и `n` расшифровываются через base.js: верхнеуровневые побочные эффекты
-  вырезаются, а сборщик ссылок с `.set("alr","yes")` вызывается во внешнем JS-рантайме.
+## Stream URLs for developers: `--get-url`
 
 ```
-fast-dlp login                      # код устройства на google.com/device
-fast-dlp URL --refresh-token TOKEN  # или готовый refresh token (сохраняется)
+fast-dlp -g https://youtu.be/VIDEO_ID                # two lines: video, then audio
+fast-dlp -g -x https://youtu.be/VIDEO_ID             # one line: the best audio
+fast-dlp -g -q 720 https://youtu.be/VIDEO_ID
+fast-dlp -g https://open.spotify.com/track/TRACK_ID  # audio of the track found on YouTube
+fast-dlp -g LIVE_URL                                 # a live stream: its HLS playlist
+fast-dlp -g https://example.com/video.m3u8           # other sites: the file or .m3u8
 ```
 
-Токен можно передать и через переменную `FAST_DLP_REFRESH_TOKEN`.
+Instead of downloading, fast-dlp prints the stream URLs to stdout, one per line. Formats
+are chosen exactly as for a download (`-f`, `-q`, `-x`, `--codec`). All logging goes to
+stderr, so the output can go straight into a script:
+
+```
+url=$(fast-dlp -g -x https://youtu.be/VIDEO_ID)
+curl -L -o audio.m4a "$url"
+ffplay "$(fast-dlp -g -q 1080 https://youtu.be/VIDEO_ID | head -1)"
+```
+
+googlevideo URLs live a few hours and are bound to the IP that requested them. `Range`
+requests work; a full GET is answered with a redirect, so curl needs `-L`.
+
+## Why it is fast
+
+- **One API request.** No watch page and no base.js: the `VISIONOS` InnerTube client
+  returns direct URLs (up to 4K, no signature and no `n` parameter) in about 0.25 s.
+- **Parallel download.** A file is fetched over 16 connections, each a persistent HTTPS
+  connection.
+- **Chunks sized to the network.** Each connection measures its own speed and takes the next
+  chunk worth about 2 seconds:
+  - at 60 Mbit/s that is ~1 MiB;
+  - on gigabit it is 8 MiB, the ceiling: googlevideo throttles ranges larger than ~10 MB;
+  - near the end chunks get smaller so that all connections finish together.
+- **Straight into the final file.** YouTube video and audio are not downloaded into `.part`
+  files and joined afterwards. From the formats' indexes (`sidx` / `Cues`) the final file is
+  planned ahead, and each chunk is written straight to its place. Afterwards only the
+  fragment headers (a few KiB) are patched. Every byte is downloaded and written once.
+- **No writing zeros.** When a file grows, Windows physically writes zeros: 3 GB of zeros
+  before the download looks like a "background download". The file is created sparse
+  (NTFS sparse) and its size is set instantly.
+- **MP3 without an intermediate file.** Audio goes from the network straight into ffmpeg.
+- **No restarts.** An expired URL (HTTP 403) is renewed with a new `/player` request and the
+  download continues where it was.
+
+## IPv4 and IPv6
+
+YouTube judges each address separately. A home connection shares one IPv4 address, while
+every device has its own IPv6, and Windows prefers IPv6 by default. If YouTube answers an
+IPv6 address with a bot check ("Sign in to confirm you're not a bot"), fast-dlp switches the
+whole process to IPv4 and remembers that for 6 hours (`%LOCALAPPDATA%\fast-dlp\route.json`).
+The whole process switches at once because stream URLs are bound to the address that
+requested them. `-4` / `-6` choose the address family by hand.
+
+## Age-restricted videos
+
+If VISIONOS answers `LOGIN_REQUIRED`, fast-dlp moves to the `TVHTML5` client (Tizen,
+version `5.<date>`) with the account's OAuth token:
+
+- client_id and client_secret come from the `youtube.com/tv` bundle (cached 6 h);
+- the refresh token is exchanged for an access token (cached until it expires);
+- `signatureCipher` and `n` are solved through base.js: top-level side effects are cut out,
+  and the URL builder with `.set("alr","yes")` is called in an external JS runtime.
+
+```
+fast-dlp login                      # device code at google.com/device
+fast-dlp URL --refresh-token TOKEN  # or a ready refresh token (saved)
+```
+
+The token can also be passed in `FAST_DLP_REFRESH_TOKEN`.
 
 ## Spotify
 
@@ -183,174 +230,175 @@ fast-dlp https://open.spotify.com/track/TRACK_ID
 fast-dlp https://open.spotify.com/playlist/PLAYLIST_ID -I 1-10,15
 ```
 
-Звук берётся с YouTube, Spotify даёт только данные о треке. Ключи не нужны: данные (с ISRC)
-приходят через бэкенд CDisc (`https://2281273.xyz/spotify?url=…&beta=true`, сырой JSON
-Spotify). Свой адрес задаёт переменная `FAST_DLP_SPOTIFY_BACKEND`.
+The audio comes from YouTube; Spotify only provides the track data. No keys are needed: the
+data (with ISRC) comes through the CDisc backend
+(`https://2281273.xyz/spotify?url=…&beta=true`, Spotify's raw JSON). Set your own address
+with `FAST_DLP_SPOTIFY_BACKEND`.
 
-Можно использовать и свои ключи Web API: приложение создаётся на
-https://developer.spotify.com/dashboard, ключи вводятся командой `fast-dlp spotify-setup`
-или задаются переменными `FAST_DLP_SPOTIFY_ID` / `FAST_DLP_SPOTIFY_SECRET`. С ключами
-Spotify участвует и в общем поиске.
+You can also use your own Web API keys: create an app at
+https://developer.spotify.com/dashboard and enter the keys with `fast-dlp spotify-setup`, or
+set `FAST_DLP_SPOTIFY_ID` / `FAST_DLP_SPOTIFY_SECRET`. With keys, Spotify also takes part in
+the all-source search.
 
-Источники данных перебираются по порядку: свои ключи → бэкенд → публичная embed-страница
-(без ISRC).
+Data sources are tried in order: your keys → the backend → the public embed page (no ISRC).
 
-Как трек находится на YouTube Music:
+How a track is found on YouTube Music:
 
-1. По **ISRC**. Результат принимается, только если длительность отличается не больше чем
-   на 5 с и совпадает название или артист.
-2. Поиск «артист + название» с фильтром «песни»: оценивается сходство названия, артиста и
-   разница в длительности (не больше 15 с).
-3. То же с фильтром «видео»: клипы и перезаливы.
+1. By **ISRC**. A result is accepted only if the duration differs by at most 5 s and the
+   title or the artist match.
+2. A search for "artist + title" with the "songs" filter: title and artist similarity and
+   the duration difference (at most 15 s) are scored.
+3. The same with the "videos" filter: music videos and re-uploads.
 
-У треков плейлиста из бэкенда нет обложки и даты, поэтому они догружаются перед
-скачиванием каждого трека. Редакционные плейлисты Spotify (`37i9…`) берутся с
-embed-страницы.
+Playlist tracks from the backend have no cover or date, so these are fetched before each
+track downloads. Spotify's editorial playlists (`37i9…`) are read from the embed page.
 
-## Другие источники
+## Other sources
 
-| Источник | Что умеет | Вход |
+| Source | What it does | Sign-in |
 |---|---|---|
-| **Яндекс Музыка** | трек, альбом, плейлист. С токеном файл берётся прямо с Яндекса (MP3 320 при Плюсе); без токена трек ищется на YouTube | `fast-dlp yandex-login`, необязательно |
-| **VK Музыка** | трек, плейлист, альбом. HLS с AES-128 расшифровывается встроенным AES, MP3 достаётся из MPEG-TS без перекодирования | `fast-dlp vk-setup` |
-| **SoundCloud** | трек, сет (плейлист/альбом), теги и обложка 500×500 | нет |
-| **TikTok** | видео без водяного знака (h264, `--codec hevc` — h265), фото-посты, `-x` — оригинальный звук, короткие ссылки | нет |
-| **Pinterest** | видео, истории, картинки в оригинале | нет |
-| **Pornhub** | видео: лучший MP4 не выше `-q`, качается параллельно по диапазонам (сайт режет скорость на одно соединение); если MP4 нет, берётся HLS. Где страна требует настоящую проверку возраста, fast-dlp сообщает об этом и ничего не обходит | нет |
-| **Steam Workshop** | предмет или коллекция. Старые предметы — по прямой ссылке, SteamPipe — через `steamcmd`, который скачивается сам. Для платных игр: `--steam-user ЛОГИН`, пароль и Steam Guard вводятся в steamcmd один раз | для платных игр |
-| **Любой файл / .m3u8** | прямые ссылки — в N потоков по диапазонам; HLS — сегменты параллельно, с AES-128 | нет |
+| **Yandex Music** | track, album, playlist. With a token the file comes straight from Yandex (MP3 320 with Plus); without one the track is found on YouTube | `fast-dlp yandex-login`, optional |
+| **VK Music** | track, playlist, album. AES-128 HLS is decrypted by the built-in AES; MP3 is taken out of MPEG-TS without re-encoding | `fast-dlp vk-setup` |
+| **SoundCloud** | track, set (playlist/album), tags and 500×500 cover art | none |
+| **TikTok** | videos without the watermark (h264, `--codec hevc` for h265), photo posts, `-x` for the original sound, short links | none |
+| **Pinterest** | videos, stories, images in the original size | none |
+| **Pornhub** | videos: the best MP4 up to `-q`, fetched in parallel ranges (the site throttles a single connection); HLS when there is no MP4. Where a country requires a real age check, fast-dlp says so and bypasses nothing | none |
+| **Steam Workshop** | an item or a collection. Old items through a direct link, SteamPipe through `steamcmd`, downloaded automatically. Paid games: `--steam-user LOGIN`; the password and Steam Guard go into steamcmd once | for paid games |
+| **Any file / .m3u8** | direct links over N ranged connections; HLS segments in parallel, with AES-128 | none |
 
-Токены лежат в `%APPDATA%\fast-dlp\` (`yandex.json`, `vk.json`); можно задать и через
+Tokens live in `%APPDATA%\fast-dlp\` (`yandex.json`, `vk.json`); they can also be set with
 `FAST_DLP_YANDEX_TOKEN` / `FAST_DLP_VK_TOKEN`.
 
-AES написан на чистом Python и сверен с векторами FIPS-197 и NIST SP 800-38A. Один поток даёт
-~1.6 МиБ/с, поэтому большие объёмы расшифровываются в пуле процессов на всех ядрах.
+AES is pure Python, checked against the FIPS-197 and NIST SP 800-38A vectors. One thread
+does ~1.6 MiB/s, so large amounts are decrypted in a process pool on all cores.
 
-## Поиск сразу по всем источникам
-
-```
-fast-dlp исполнитель - название
-```
-
-Если в аргументах нет ни одной ссылки, они считаются поисковым запросом. YouTube Music,
-Spotify, Яндекс Музыка, YouTube и SoundCloud опрашиваются параллельно, весь поиск занимает
-около 1 с. Результаты открываются в экране выбора: у каждого видно источник и длительность,
-отмечен лучший. С `-y` или без терминала сразу скачивается лучший результат.
-
-## Выбор треков в терминале
-
-Ссылка на альбом или плейлист открывает экран выбора. Язык экрана и таблицы загрузок берётся из системы: русский на русской Windows/Linux/macOS, английский на остальных. Задать вручную: `--lang ru` / `--lang en` или переменная `FAST_DLP_LANG`.
+## Search every source at once
 
 ```
- Spotify · «Альбом» · 12   выбрано 11 из 12
- ─ Треки ──────────────────────────────────────────────
- ▸ [x]  1  Трек 1 — Исполнитель                    3:41
-   [ ]  2  Трек 2 — Исполнитель                    4:05
- ─ Параметры ──────────────────────────────────────────
-   Формат          ◀ mp3 ▶
-   Качество MP3    ◀ 320k ▶
-   Параллельно     ◀ 4 ▶
-   Теги / Обложка  ◀ да ▶
-   Уже скачанные   ◀ пропускать ▶
+fast-dlp artist - title
 ```
 
-| Клавиша | Действие |
+If the arguments contain no link, they are a search query. YouTube Music, Spotify, Yandex
+Music, YouTube and SoundCloud are asked in parallel; the whole search takes about 1 s. The
+results open in the picker: each shows its source and duration, and the best one is ticked.
+With `-y` or without a terminal the best result downloads right away.
+
+## Picking tracks in the terminal
+
+An album or playlist link opens the picker. The picker and the download board follow the
+system language: Russian on a Russian Windows/Linux/macOS, English elsewhere. Set it by hand
+with `--lang ru` / `--lang en` or `FAST_DLP_LANG`.
+
+```
+ Spotify · “Album” · 12   11 of 12 selected
+ ─ Tracks ─────────────────────────────────────────────
+ ▸ [x]  1  Track 1 — Artist                        3:41
+   [ ]  2  Track 2 — Artist                        4:05
+ ─ Options ────────────────────────────────────────────
+   Format             ◀ mp3 ▶
+   MP3 quality        ◀ 320k ▶
+   In parallel        ◀ 4 ▶
+   Tags / Cover       ◀ yes ▶
+   Already downloaded ◀ skip ▶
+```
+
+| Key | Action |
 |---|---|
-| ↑ ↓, Home/End, PgUp/PgDn | перемещение |
-| Пробел | отметить / снять трек |
-| ← → | на параметре: менять значение; на треках: листать страницами |
-| A / N / I | все / ничего / инвертировать |
-| Enter | скачать отмеченное |
-| Esc / Q | отмена |
+| ↑ ↓, Home/End, PgUp/PgDn | move |
+| Space | tick / untick a track |
+| ← → | on an option: change the value; on tracks: page |
+| A / N / I | all / none / invert |
+| Enter | download the ticked ones |
+| Esc / Q | cancel |
 
-После Enter открывается живая таблица: у каждого трека свой статус (в очереди / качается /
-готово / уже было / ошибка), внизу последние строки лога.
+After Enter a live board opens: each track has its own status (queued / downloading / done /
+already there / failed), with the latest log lines at the bottom.
 
-`-y` качает всё без экрана выбора, `--select` открывает его всегда. С `-I` или без
-терминала экран не открывается.
+`-y` downloads everything without the picker, `--select` always opens it. With `-I` or
+without a terminal it does not open.
 
-## Плейлисты и альбомы
+## Playlists and albums
 
 ```
 fast-dlp "https://www.youtube.com/playlist?list=PLAYLIST_ID"
 fast-dlp https://open.spotify.com/album/ALBUM_ID
-fast-dlp https://open.spotify.com/playlist/PLAYLIST_ID -I 1-10,15   # только эти номера
+fast-dlp https://open.spotify.com/playlist/PLAYLIST_ID -I 1-10,15   # only these numbers
 ```
 
-Плейлист YouTube читается через InnerTube `/browse` со всеми продолжениями (913 видео за
-6.8 с). Файлы раскладываются в папку `{playlist}/` с номерами `{index}`. Элементы качаются
-по 4 сразу (`-J`): альбом из 14 треков в MP3 — за 18 с вместо 52. Уже скачанные файлы
-пропускаются ещё до запроса к YouTube, `-w` качает всё заново.
+A YouTube playlist is read through InnerTube `/browse` with every continuation (913 videos in
+6.8 s). Files go into a `{playlist}/` folder, numbered with `{index}`. Items download 4 at a
+time (`-J`): a 14-track album as MP3 takes 18 s instead of 52. Files already downloaded are
+skipped before any request to YouTube; `-w` downloads everything again.
 
-## Синхронизация плейлистов
+## Playlist sync
 
 ```
 fast-dlp sync https://open.spotify.com/playlist/PLAYLIST_ID
 fast-dlp sync "https://www.youtube.com/playlist?list=PLAYLIST_ID" --sync-dir D:\Music\Mix -x
 ```
 
-Новые треки докачиваются, убранные из плейлиста удаляются. Удаляются только файлы, которые
-создал sync (они записаны в `.fast-dlp-sync.json`); `--sync-keep` не удаляет ничего. Рядом
-пишется `<плейлист>.m3u8`. Повторный запуск без изменений занимает меньше секунды — удобно
-для планировщика.
+New tracks are downloaded, tracks removed from the playlist are deleted. Only files that
+sync created are deleted (they are listed in `.fast-dlp-sync.json`); `--sync-keep` deletes
+nothing. A `<playlist>.m3u8` is written next to them. A repeat run with no changes takes
+under a second — handy for a scheduler.
 
-## Отрывок видео без ffmpeg
+## A video section without ffmpeg
 
 ```
 fast-dlp URL --section 3:40-5:10
-fast-dlp URL --section 1:00:00-                     # с часа до конца
-fast-dlp "https://youtu.be/VIDEO_ID?t=220" --section t   # с отметки t= в ссылке
+fast-dlp URL --section 1:00:00-                          # from one hour to the end
+fast-dlp "https://youtu.be/VIDEO_ID?t=220" --section t   # from the t= mark in the link
 ```
 
-По оглавлению формата (`sidx` в MP4, `Cues` в WebM) скачиваются только байты нужного
-отрывка, а муксер переносит время к нулю. Отрывок 30 с из 4-минутного 1080p — 13 МБ вместо
-80. Резка идёт по ключевым кадрам, как у `ffmpeg -c copy`, без перекодирования.
+From the format's index (`sidx` in MP4, `Cues` in WebM) only the bytes of the section are
+downloaded, and the muxer shifts the time to zero. A 30 s section of a 4-minute 1080p video
+is 13 MB instead of 80. Cuts are at keyframes, like `ffmpeg -c copy`, with no re-encoding.
 
-## Тексты песен и громкость
+## Lyrics and loudness
 
-- **Тексты** берутся из LRCLIB, синхронизированные (LRC), если есть. Для музыки включено по
-  умолчанию, для видео — флагом `--lyrics`. Вшиваются в MP3 (`USLT`), M4A (`©lyr`) и
-  WebM/MKV. `--write-lyrics` сохраняет ещё и `.lrc`, `--no-lyrics` отключает.
-- **ReplayGain** без анализа файла: YouTube сам сообщает громкость трека, из неё получается
-  усиление ReplayGain 2.0 (опора −18 LUFS). `--no-replaygain` отключает.
+- **Lyrics** come from LRCLIB, synced (LRC) when available. On by default for music, with
+  `--lyrics` for videos. Embedded in MP3 (`USLT`), M4A (`©lyr`) and WebM/MKV.
+  `--write-lyrics` also saves a `.lrc`, `--no-lyrics` turns them off.
+- **ReplayGain** without analysing the file: YouTube reports the track's loudness, and the
+  ReplayGain 2.0 gain is computed from it (reference −18 LUFS). `--no-replaygain` turns it
+  off.
 
-## Субтитры, главы, эфиры (YouTube)
+## Subtitles, chapters, live streams (YouTube)
 
 ```
 fast-dlp URL --embed-subs --sub-langs en,ru
 fast-dlp URL --write-subs --write-auto-subs --sub-langs all --sub-format vtt
 fast-dlp URL --embed-chapters --sponsorblock-mark all
 fast-dlp URL --write-info-json --write-description --write-thumbnail --write-comments
-fast-dlp LIVE_URL --live-duration 600              # записать эфир 10 минут
-fast-dlp LIVE_URL --live-from-start                # с начала окна DVR
-fast-dlp "https://www.youtube.com/@CHANNEL"        # канал
-fast-dlp "ytsearch10:запрос" -x                    # поиск по YouTube
-fast-dlp URL --download-archive done.txt           # не качать уже скачанное
+fast-dlp LIVE_URL --live-duration 600              # record a live stream for 10 minutes
+fast-dlp LIVE_URL --live-from-start                # from the start of the DVR window
+fast-dlp "https://www.youtube.com/@CHANNEL"        # a channel
+fast-dlp "ytsearch10:query" -x                     # YouTube search
+fast-dlp URL --download-archive done.txt           # skip what was downloaded before
 fast-dlp URL --proxy http://user:pass@host:8080
 ```
 
-- **Субтитры** — ручные и автоматические, встраиваются без ffmpeg (MP4 — `tx3g`, MKV — SRT).
-- **Главы** — из маркеров плеера или таймкодов в описании; **SponsorBlock** размечает
-  рекламу, интро и т. д.
-- **Эфиры** записываются через HLS, пока трансляция не кончится или не нажат Ctrl+C.
-- **Запасной HLS** до 4K включается сам, если прямые ссылки не работают (`--hls` —
-  принудительно).
-- **Побочные файлы:** `.info.json`, `.description`, `.jpg`, `.comments.json`.
-- **Шаблон имени:** `{title} {id} {uploader} {channel} {upload_date} {year} {duration}
+- **Subtitles** — manual and automatic, embedded without ffmpeg (MP4 `tx3g`, MKV SRT).
+- **Chapters** — from the player's markers or timestamps in the description;
+  **SponsorBlock** marks sponsors, intros and so on.
+- **Live streams** are recorded through HLS until the stream ends or Ctrl+C.
+- **Fallback HLS** up to 4K kicks in by itself if direct URLs fail (`--hls` forces it).
+- **Side files:** `.info.json`, `.description`, `.jpg`, `.comments.json`.
+- **Name template:** `{title} {id} {uploader} {channel} {upload_date} {year} {duration}
   {height} {resolution} {playlist} {playlist_index} {album} {artist} {track_number} {site}
-  {ext}` и другие. Работает форматирование Python: `{playlist_index:03d}`. Неизвестное поле
-  становится `NA`, `/` создаёт папки.
+  {ext}` and more. Python formatting works: `{playlist_index:03d}`. An unknown field becomes
+  `NA`, `/` makes folders.
 
-## Теги и обложки
+## Tags and cover art
 
-Теги пишутся без ffmpeg:
+Tags are written without ffmpeg:
 
-- **MP4/M4A** — атомы iTunes (`©nam ©ART ©alb aART ©day trkn ©cmt covr`);
-- **WebM** — Matroska `Tags`, обложка во вложении;
-- **MP3** — ID3v2.3, обложка во фрейме APIC.
+- **MP4/M4A** — iTunes atoms (`©nam ©ART ©alb aART ©day trkn ©cmt covr`);
+- **WebM** — Matroska `Tags`, cover art as an attachment;
+- **MP3** — ID3v2.3, cover art in an APIC frame.
 
-Обложка по умолчанию встраивается только в аудио; `--embed-thumbnail` — и в видео,
-`--no-cover` / `--no-metadata` отключают.
+By default cover art goes only into audio; `--embed-thumbnail` adds it to video too,
+`--no-cover` / `--no-metadata` turn it off.
 
 ## MP3
 
@@ -359,68 +407,69 @@ fast-dlp URL --audio-format mp3                 # 320k CBR
 fast-dlp URL --audio-format mp3 --audio-quality V0
 ```
 
-YouTube не отдаёт MP3, поэтому нужен ffmpeg (libmp3lame): трёхминутный трек кодируется за
-~2 с. `--audio-format opus` / `m4a` берут поток без перекодирования.
+YouTube does not serve MP3, so ffmpeg (libmp3lame) is needed: a three-minute track encodes
+in ~2 s. `--audio-format opus` / `m4a` take the stream without re-encoding.
 
-## Склейка без ffmpeg
+## Joining without ffmpeg
 
-Обычно отдельной склейки нет: файл собирается прямо при загрузке (см. «Почему быстро»).
-Встроенный муксер работает, когда нужны встроенные субтитры или главы, с `--keep-parts`
-и для запасного пути HLS. Он только копирует данные, ничего не перекодирует:
+Usually there is no separate joining step: the file is put together while it downloads (see
+"Why it is fast"). The built-in muxer works when embedded subtitles or chapters are needed,
+with `--keep-parts` and for the HLS fallback. It only copies data and never re-encodes:
 
-- **WebM + WebM** (vp9/av01 + opus): кластеры чередуются по времени, Cues и SeekHead
-  пишутся заново.
-- **MP4 + M4A** (фрагментированные): один `moov` с двумя дорожками, `moof+mdat`
-  чередуются по времени.
+- **WebM + WebM** (vp9/av01 + opus): clusters are interleaved by time, Cues and SeekHead are
+  rewritten.
+- **MP4 + M4A** (fragmented): one `moov` with two tracks, `moof+mdat` interleaved by time.
 
-| Что | Размер | Время |
+| What | Size | Time |
 |---|---|---|
-| 4K60 vp9 + opus → .webm | 1.3 ГБ | 0.90 с |
-| 4K vp9 + opus → .webm | 345 МиБ | 0.14 с |
-| 1080p60 avc1 + aac → .mp4 | 255 МиБ | 0.11 с |
+| 4K60 vp9 + opus → .webm | 1.3 GB | 0.90 s |
+| 4K vp9 + opus → .webm | 345 MiB | 0.14 s |
+| 1080p60 avc1 + aac → .mp4 | 255 MiB | 0.11 s |
 
-Потоки побитово совпадают с исходными. ffmpeg нужен только для смешанных контейнеров
-(`-f 398+251`) или с `--merger ffmpeg`.
+The streams are bit-identical to the originals. ffmpeg is needed only for mixed containers
+(`-f 398+251`) or with `--merger ffmpeg`.
 
-## Тесты
+## Tests
 
 ```
-py -m unittest discover -s tests -t .                              # 123 теста без сети, ~4 с
-set FAST_DLP_NETWORK=1 && py -m unittest discover -s tests -t .    # + живые проверки
+py -m unittest discover -s tests -t .                              # offline tests, ~4 s
+set FAST_DLP_NETWORK=1 && py -m unittest discover -s tests -t .    # + live checks
 ```
 
-## Устройство
+## Layout
 
-| Файл | Что делает |
+| File | What it does |
 |---|---|
-| `fast_dlp/innertube.py` | клиенты VISIONOS / TVHTML5, запрос `/player` |
-| `fast_dlp/oauth.py` | вход по коду устройства, refresh |
-| `fast_dlp/cipher.py` | подготовка base.js, решатель sig/n |
-| `fast_dlp/extractor.py` | VISIONOS → (возрастное) → TV + OAuth |
-| `fast_dlp/download.py` | многопоточная загрузка по диапазонам |
-| `fast_dlp/formats.py` | выбор форматов, таблица `-F` |
-| `fast_dlp/mux.py` | склейка WebM и fMP4, теги и обложки |
-| `fast_dlp/mp3.py` | MP3 через ffmpeg, свой ID3v2.3 |
-| `fast_dlp/playlist.py` | плейлисты, каналы, поиск YouTube |
-| `fast_dlp/spotify.py` | Spotify: свои ключи / бэкенд CDisc / embed-страница |
-| `fast_dlp/ytmusic.py` | поиск YouTube Music и сопоставление трека |
-| `fast_dlp/sources/` | Яндекс, VK, SoundCloud, TikTok, Pinterest, Pornhub, Steam, любые файлы |
-| `fast_dlp/hls.py` | HLS, AES-128, запись эфиров |
-| `fast_dlp/ytmeta.py` | дата, главы, комментарии, субтитры, SponsorBlock |
-| `fast_dlp/search.py` | поиск по всем источникам |
-| `fast_dlp/section.py` | отрывок по времени |
-| `fast_dlp/sync.py` | синхронизация с плейлистом |
-| `fast_dlp/lyrics.py` | тексты LRCLIB, ReplayGain |
-| `fast_dlp/postprocess.py` | шаблон имени, побочные файлы, архив |
-| `fast_dlp/aes.py` | AES-128-CBC на чистом Python |
-| `fast_dlp/ts.py` | разбор MPEG-TS |
-| `fast_dlp/tui.py` | экран выбора и таблица загрузок |
-| `fast_dlp/stream.py` | файл потоком: план по индексам, параллельные фрагменты, правка на лету |
-| `fast_dlp/web/` | сайт: сервер, одноразовые ссылки, подтверждение доставки, страница; `targets.py` — все источники CLI и потоковая отдача прямых файлов и HLS |
-| `fast_dlp/cli.py` | командная строка |
+| `fast_dlp/innertube.py` | VISIONOS / TVHTML5 clients, the `/player` request |
+| `fast_dlp/oauth.py` | device-code sign-in, refresh |
+| `fast_dlp/cipher.py` | base.js preparation, sig/n solver |
+| `fast_dlp/extractor.py` | VISIONOS → (age-restricted) → TV + OAuth |
+| `fast_dlp/download.py` | multi-connection ranged download |
+| `fast_dlp/formats.py` | format selection, the `-F` table |
+| `fast_dlp/mux.py` | WebM and fMP4 joining, tags and cover art |
+| `fast_dlp/mp3.py` | MP3 through ffmpeg, own ID3v2.3 |
+| `fast_dlp/playlist.py` | playlists, channels, YouTube search |
+| `fast_dlp/spotify.py` | Spotify: own keys / CDisc backend / embed page |
+| `fast_dlp/ytmusic.py` | YouTube Music search and track matching |
+| `fast_dlp/sources/` | Yandex, VK, SoundCloud, TikTok, Pinterest, Pornhub, Steam, any file |
+| `fast_dlp/hls.py` | HLS, AES-128, live recording |
+| `fast_dlp/ytmeta.py` | date, chapters, comments, subtitles, SponsorBlock |
+| `fast_dlp/search.py` | search across every source |
+| `fast_dlp/section.py` | time sections |
+| `fast_dlp/sync.py` | playlist sync |
+| `fast_dlp/lyrics.py` | LRCLIB lyrics, ReplayGain |
+| `fast_dlp/postprocess.py` | name template, side files, archive |
+| `fast_dlp/aes.py` | pure-Python AES-128-CBC |
+| `fast_dlp/ts.py` | MPEG-TS parsing |
+| `fast_dlp/tui.py` | the picker and the download board |
+| `fast_dlp/i18n.py` | terminal interface language |
+| `fast_dlp/pathfix.py` | puts the `fast-dlp` command on PATH |
+| `fast_dlp/stream.py` | streamed files: plan from indexes, parallel fragments, on-the-fly patches |
+| `fast_dlp/web/` | the website: server, one-time links, delivery confirmation, page in RU/EN; `targets.py` — every CLI source and streaming of direct files and HLS |
+| `fast_dlp/cli.py` | the command line |
 
-Кэш: `%LOCALAPPDATA%\fast-dlp`. Токены и настройки: `%APPDATA%\fast-dlp`.
+Cache: `%LOCALAPPDATA%\fast-dlp`. Tokens and settings: `%APPDATA%\fast-dlp`.
 
-## Лицензия
+## License
 
-MIT, см. [LICENSE](LICENSE).
+MIT, see [LICENSE](https://github.com/valkdzx/fast-dlp/blob/main/LICENSE).

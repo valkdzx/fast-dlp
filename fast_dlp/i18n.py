@@ -58,6 +58,22 @@ STRINGS = {
     "quoted": {"ru": "«{s}»", "en": "“{s}”"},
     "site_yandex": {"ru": "Яндекс Музыка", "en": "Yandex Music"},
     "label_yandex": {"ru": "Яндекс", "en": "Yandex"},
+    # PATH
+    "path_added": {"ru": "[path] папка {folder} добавлена в PATH: в новом окне терминала "
+                         "работает просто `fast-dlp`",
+                   "en": "[path] added {folder} to PATH: in a new terminal window plain "
+                         "`fast-dlp` works"},
+    "path_ok": {"ru": "[path] {folder} уже в PATH", "en": "[path] {folder} is already on PATH"},
+    "path_failed": {"ru": "[path] не получилось добавить {folder} в PATH: {error}",
+                    "en": "[path] could not add {folder} to PATH: {error}"},
+    "path_posix": {"ru": "[path] {folder} нет в PATH; добавьте в ~/.profile строку: "
+                         "export PATH=\"{folder}:$PATH\"",
+                   "en": "[path] {folder} is not on PATH; add this line to ~/.profile: "
+                         "export PATH=\"{folder}:$PATH\""},
+    "path_venv": {"ru": "[path] это виртуальное окружение: `fast-dlp` доступен, пока оно активировано; PATH не меняю",
+                  "en": "[path] this is a virtual environment: `fast-dlp` works while it is activated; PATH left alone"},
+    "path_no_launcher": {"ru": "[path] fast-dlp запущен из исходников, не из pip: PATH не нужен",
+                         "en": "[path] fast-dlp runs from source, not from pip: no PATH needed"},
 }
 
 _lang = None

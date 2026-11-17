@@ -6,7 +6,7 @@ import urllib.parse
 import urllib.request
 
 from .. import net
-from ..utils import FastDlpError
+from ..utils import FastDlpError, net_error
 from .common import direct, ext_of
 
 _HTTP = re.compile(r"^https?://", re.I)
@@ -25,6 +25,8 @@ def _probe(url):
             return resp.status, dict(resp.headers), resp.geturl()
     except urllib.error.HTTPError as e:
         return e.code, dict(e.headers or {}), url
+    except OSError as e:
+        raise FastDlpError(f"{url}: {net_error(e)}")
 
 
 def expand(url, args):

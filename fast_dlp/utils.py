@@ -139,3 +139,16 @@ def allocate(path, size):
 
 class FastDlpError(Exception):
     pass
+
+
+def net_error(e):
+    """A network exception in one readable line: 'certificate not trusted', 'timed out'..."""
+    reason = getattr(e, "reason", None) or e
+    text = str(reason)
+    if "CERTIFICATE_VERIFY_FAILED" in text:
+        return "the site's TLS certificate is not trusted by this Python (certificate verify failed)"
+    if isinstance(reason, TimeoutError) or "timed out" in text:
+        return "the site did not answer in time"
+    if "getaddrinfo" in text or "Name or service not known" in text:
+        return "no such host"
+    return text or reason.__class__.__name__

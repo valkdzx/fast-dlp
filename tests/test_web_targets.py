@@ -43,7 +43,7 @@ class ListTest(unittest.TestCase):
         self.assertEqual([r["kind"] for r in rows], ["youtube", "track", "direct"])
         self.assertEqual(rows[0]["title"], "First")
         self.assertEqual(rows[1]["author"], "B, C")
-        self.assertEqual(rows[1]["site"], "Spotify")
+        self.assertEqual(rows[1]["site"], "spotify")
         self.assertTrue(rows[1]["audio"])
         self.assertEqual(rows[0]["duration"], 61)
 

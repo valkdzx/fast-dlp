@@ -39,6 +39,8 @@ commands:
   fast-dlp spotify-setup   set Spotify Web API keys (ClientID/ClientSecret) for ISRC matching
   fast-dlp yandex-login    sign in to Yandex Music (device code) for full tracks from Yandex
   fast-dlp vk-setup        save a VK (Kate Mobile) token for VK Music
+  fast-dlp path            put the folder of the fast-dlp command on PATH (Windows; done
+                           automatically on the first `python -m fast_dlp`)
   fast-dlp sync LINK       keep a folder equal to a playlist/album/channel: download new entries,
                            delete removed ones, write an .m3u8 in playlist order
 
@@ -123,7 +125,10 @@ def build_parser():
     p.add_argument("--range-mode", choices=["header", "param"], default="param",
                    help="send ranges as a Range header or as googlevideo's &range= (default)")
     p.add_argument("-F", "--list-formats", action="store_true", help="list formats and exit")
-    p.add_argument("-g", "--get-url", action="store_true", help="print stream URLs and exit")
+    p.add_argument("-g", "--get-url", action="store_true",
+                   help="print the media URLs to stdout instead of downloading: YouTube - one line per chosen "
+                        "format (video, then audio; -f/-q/-x apply), a live stream - its HLS playlist, other "
+                        "sites - the file or .m3u8 link. Logs stay on stderr, so `url=$(fast-dlp -g LINK)` works")
     p.add_argument("-j", "--dump-json", action="store_true", help="print the player response and exit")
     p.add_argument("--client", choices=["auto", "visionos", "tv"], default="auto",
                    help="auto: VISIONOS, falling back to TV+OAuth for age-restricted videos")
@@ -455,6 +460,8 @@ def _probe_size(url, headers):
             return int(resp.headers.get("Content-Length") or 0), False
     except urllib.error.HTTPError as e:
         raise FastDlpError(f"{url.split('?')[0]} answered HTTP {e.code}")
+    except OSError as e:
+        raise FastDlpError(f"{url.split('?')[0]}: {utils.net_error(e)}")
 
 
 def _plain_get(url, headers, path):
@@ -474,6 +481,11 @@ def process_direct(extractor, job, args, ffmpeg):
               file=sys.stderr)
         fallback = dict(job, source="match", track=job["fallback_track"])
         return process(extractor, fallback, args, ffmpeg)
+    if args.get_url:
+        if spec["kind"] == "steamcmd":
+            raise FastDlpError(f"{job['title']}: Steam Workshop items come through steamcmd, there is no URL")
+        print(spec["url"], flush=True)
+        return "done"
     template = template_for(job, args)
     prefix = f"[{job['index']}/{job['total']}] " if job.get("playlist") else ""
     known = _Known(job)
@@ -627,6 +639,12 @@ def _process(extractor, job, args, ffmpeg):
     upload_date = watch.upload_date() if watch and postprocess.template_fields(template) & set(postprocess.DATE_FIELDS) else None
 
     if details.get("isLive"):
+        if args.get_url:
+            hls_url = (video.raw.get("streamingData") or {}).get("hlsManifestUrl")
+            if not hls_url:
+                raise FastDlpError("this live stream offers no HLS playlist")
+            print(hls_url, flush=True)
+            return "done"
         return record_live(video, job, args, ffmpeg, template, upload_date)
 
     spec = _audio_spec(args, job["source"] in MUSIC_SOURCES or job.get("as_audio", False))
@@ -638,7 +656,7 @@ def _process(extractor, job, args, ffmpeg):
         picked = fmt.select(video.formats, spec, args.max_height, args.codec)
     if args.get_url:
         for f in picked:
-            print(f["url"])
+            print(f["url"], flush=True)
         return "done"
 
     single = len(picked) == 1
@@ -1035,6 +1053,10 @@ def main(argv=None):
         if argv[:1] == ["logout"]:
             TvAuth().logout()
             return 0
+        if argv[:1] == ["path"]:
+            from . import pathfix
+            pathfix.ensure(force=True, out=sys.stdout)
+            return 0
         if argv[:1] == ["web"]:
             from .web import server
             return server.main(argv[1:])
@@ -1131,7 +1153,7 @@ def main(argv=None):
                 err(f"nothing found for «{query}»")
                 return 1
             print(f"[search] «{query}»: {summary}", file=sys.stderr)
-            if tui.available() and args.select is not False:
+            if tui.available() and args.select is not False and not args.get_url:
                 picked = pick_search(found, args, query, summary)
                 if picked is None:
                     print("[search] cancelled", file=sys.stderr)
@@ -1147,8 +1169,8 @@ def main(argv=None):
         for target in targets:
             try:
                 jobs = expand(target, args)
-            except FastDlpError as e:
-                err(str(e))
+            except (FastDlpError, OSError) as e:       # OSError: the site did not answer
+                err(str(e) if isinstance(e, FastDlpError) else f"{target}: {utils.net_error(e)}")
                 counts["failed"] += 1
                 continue
             many = many or len(jobs) > 1

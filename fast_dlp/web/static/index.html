@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="ru">
+<html lang="en">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -72,7 +72,12 @@
 
   .error { color: #fff; border: 1px solid var(--line-strong); background: var(--surface); border-radius: var(--radius);
            padding: 12px 16px; margin-bottom: 24px; animation: rise .4s var(--ease) both; }
-  .error::before { content: "Ошибка. "; font-weight: 600; }
+  .error::before { content: attr(data-prefix); font-weight: 600; }
+  .langs { position: absolute; top: 16px; right: 16px; z-index: 5; display: flex; gap: 2px; padding: 3px; border-radius: 999px;
+           border: 1px solid var(--line); background: rgba(0,0,0,.6); backdrop-filter: blur(8px); animation: fade .6s var(--ease) both .3s; }
+  .langs button { border: 0; background: none; color: var(--muted); font-size: 12px; font-weight: 600; letter-spacing: .04em;
+                  padding: 5px 10px; border-radius: 999px; cursor: pointer; transition: background .25s, color .25s; }
+  .langs button.on { background: #fff; color: #000; }
 
   /* skeleton */
   .skeleton { display: grid; gap: 12px; }
@@ -200,6 +205,7 @@
 </style>
 </head>
 <body>
+<div class="langs" role="group" aria-label="Language"><button type="button" data-lang="ru">RU</button><button type="button" data-lang="en">EN</button></div>
 <main>
   <header class="rise">
     <svg class="logo" viewBox="0 0 256 256" aria-hidden="true">
@@ -217,12 +223,12 @@
       <rect class="base" x="64" y="212" width="128" height="14" rx="7" fill="#fff"/>
     </svg>
     <h1>fast-dlp</h1>
-    <p class="lead">YouTube до 4K, Spotify, Яндекс Музыка, VK, SoundCloud, TikTok, Pinterest, Pornhub, плейлисты, поиск и прямые ссылки — всё, что берёт fast-dlp в командной строке. Файл собирается на лету и идёт к вам потоком: на сервере ничего не сохраняется.</p>
+    <p class="lead" data-i18n="lead"></p>
   </header>
 
   <form class="search rise" style="--i:2" id="search" autocomplete="off">
-    <input class="field" id="url" type="text" inputmode="url" placeholder="Ссылка или поиск: исполнитель - название" aria-label="Ссылка или поисковый запрос" autofocus>
-    <button class="btn" id="find" type="submit">Найти</button>
+    <input class="field" id="url" type="text" inputmode="url" data-i18n-ph="url_ph" data-i18n-aria="url_aria" autofocus>
+    <button class="btn" id="find" type="submit" data-i18n="find"></button>
   </form>
 
   <div id="error" class="error" hidden></div>
@@ -243,24 +249,24 @@
     </div>
 
     <div class="group rise" style="--i:1" id="g-file">
-      <div class="label"><b>Что скачать</b><span id="file-note"></span></div>
+      <div class="label"><b data-i18n="what"></b><span id="file-note"></span></div>
       <div class="seg" data-key="fmode">
-        <button type="button" data-v="original">Как есть</button>
-        <button type="button" data-v="mp3" id="fmp3-btn">Звук в MP3</button>
+        <button type="button" data-v="original" data-i18n="as_is"></button>
+        <button type="button" data-v="mp3" id="fmp3-btn" data-i18n="audio_mp3"></button>
       </div>
     </div>
 
     <div class="group rise" style="--i:1" id="g-mode">
-      <div class="label"><b>Что скачать</b></div>
+      <div class="label"><b data-i18n="what"></b></div>
       <div class="seg" data-key="mode">
-        <button type="button" data-v="video">Видео со звуком</button>
-        <button type="button" data-v="audio">Только звук</button>
-        <button type="button" data-v="video_only">Только видео</button>
+        <button type="button" data-v="video" data-i18n="video_audio"></button>
+        <button type="button" data-v="audio" data-i18n="audio_only"></button>
+        <button type="button" data-v="video_only" data-i18n="video_only"></button>
       </div>
     </div>
 
     <div class="group rise" style="--i:2" id="g-container">
-      <div class="label"><b>Формат</b><span id="container-note"></span></div>
+      <div class="label"><b data-i18n="format"></b><span id="container-note"></span></div>
       <div class="seg" data-key="container">
         <button type="button" data-v="mp4">MP4</button>
         <button type="button" data-v="webm">WebM</button>
@@ -268,7 +274,7 @@
     </div>
 
     <div class="group rise" style="--i:2" id="g-audio">
-      <div class="label"><b>Формат звука</b><span id="audio-note"></span></div>
+      <div class="label"><b data-i18n="audio_format"></b><span id="audio-note"></span></div>
       <div class="seg" data-key="audio_format">
         <button type="button" data-v="m4a">M4A</button>
         <button type="button" data-v="opus">Opus</button>
@@ -277,21 +283,21 @@
     </div>
 
     <div class="group rise" style="--i:3" id="g-quality">
-      <div class="label"><b>Качество</b><span id="quality-note"></span></div>
+      <div class="label"><b data-i18n="quality"></b><span id="quality-note"></span></div>
       <div class="chips" id="heights"></div>
     </div>
 
     <div class="group rise" style="--i:3" id="g-codec">
-      <div class="label"><b>Кодек видео</b><span id="codec-note"></span></div>
+      <div class="label"><b data-i18n="codec"></b><span id="codec-note"></span></div>
       <div class="seg" data-key="codec">
-        <button type="button" data-v="">Авто</button>
+        <button type="button" data-v="" data-i18n="auto"></button>
         <button type="button" data-v="avc1">H.264</button>
         <button type="button" data-v="av01">AV1</button>
       </div>
     </div>
 
     <div class="group rise" style="--i:3" id="g-mp3">
-      <div class="label"><b>Битрейт MP3</b><span>перекодирование через ffmpeg</span></div>
+      <div class="label"><b data-i18n="mp3_bitrate"></b><span data-i18n="via_ffmpeg"></span></div>
       <div class="seg" data-key="mp3_quality">
         <button type="button" data-v="320k">320</button>
         <button type="button" data-v="256k">256</button>
@@ -303,12 +309,12 @@
     </div>
 
     <div class="group rise" style="--i:4" id="g-cut">
-      <label class="switch"><span><b>Отрывок</b><br><span class="muted" style="font-size:13px">только нужная часть, без ffmpeg; режется по ключевым кадрам</span></span><input type="checkbox" id="cut"></label>
+      <label class="switch"><span><b data-i18n="section"></b><br><span class="muted" style="font-size:13px" data-i18n="section_note"></span></span><input type="checkbox" id="cut"></label>
       <div class="collapse" id="cut-box"><div>
         <div class="row" style="margin-top:12px">
-          <input class="field num" id="start" placeholder="0:00" aria-label="Начало">
+          <input class="field num" id="start" placeholder="0:00" data-i18n-aria="start">
           <span class="muted">—</span>
-          <input class="field num" id="end" placeholder="конец" aria-label="Конец">
+          <input class="field num" id="end" data-i18n-ph="end_ph" data-i18n-aria="end">
         </div>
         <div class="timeline"><i id="tl"></i></div>
         <div class="muted num" style="font-size:13px" id="cut-note"></div>
@@ -316,46 +322,46 @@
     </div>
 
     <div class="group rise" style="--i:5" id="g-meta">
-      <div class="label"><b>Метаданные</b></div>
-      <label class="switch"><span>Теги: название, автор, ссылка<span id="rg-note"></span></span><input type="checkbox" id="tags" checked></label>
-      <label class="switch"><span>Обложка внутри файла</span><input type="checkbox" id="cover"></label>
+      <div class="label"><b data-i18n="metadata"></b></div>
+      <label class="switch"><span><span data-i18n="tags_video"></span><span id="rg-note"></span></span><input type="checkbox" id="tags" checked></label>
+      <label class="switch"><span data-i18n="cover"></span><input type="checkbox" id="cover"></label>
     </div>
 
     <div class="group rise" style="--i:6">
-      <div class="label"><b>Имя файла</b></div>
+      <div class="label"><b data-i18n="filename"></b></div>
       <div class="chips" id="templates"></div>
-      <input class="field" id="template" style="width:100%;margin-top:8px;padding:10px 12px" spellcheck="false" aria-label="Шаблон имени">
-      <div class="preview">Поля: {title} {author} {id} {height} {fps} {ext}<br>Файл: <b id="fname"></b></div>
+      <input class="field" id="template" style="width:100%;margin-top:8px;padding:10px 12px" spellcheck="false" data-i18n-aria="template">
+      <div class="preview"><span data-i18n="fields"></span> {title} {author} {id} {height} {fps} {ext}<br><span data-i18n="file"></span> <b id="fname"></b></div>
     </div>
 
     <div class="group rise" style="--i:7">
-      <div class="label"><b>Соединений</b><span class="num" id="conn-v">16</span></div>
+      <div class="label"><b data-i18n="connections"></b><span class="num" id="conn-v">16</span></div>
       <input type="range" id="conn" min="1" max="32" value="16">
     </div>
 
     <div class="summary rise" style="--i:8">
       <div><div class="size num" id="size">—</div><div class="muted" id="what"></div></div>
     </div>
-    <button class="btn big rise" style="--i:9" id="go" type="button">Скачать</button>
+    <button class="btn big rise" style="--i:9" id="go" type="button" data-i18n="download"></button>
   </section>
 
   <section id="list" hidden>
     <div class="listhead rise"><div class="site" id="l-site"></div><h2 id="l-title"></h2><div class="muted" id="l-sub"></div></div>
     <div class="listbar rise" style="--i:1">
       <span class="muted num" id="l-count"></span>
-      <span class="row"><button class="btn ghost sm" type="button" id="l-all">Все</button><button class="btn ghost sm" type="button" id="l-none">Ничего</button><button class="btn ghost sm" type="button" id="l-inv">Наоборот</button></span>
+      <span class="row"><button class="btn ghost sm" type="button" id="l-all" data-i18n="all"></button><button class="btn ghost sm" type="button" id="l-none" data-i18n="none"></button><button class="btn ghost sm" type="button" id="l-inv" data-i18n="invert"></button></span>
     </div>
     <div class="entries rise" style="--i:2" id="entries"></div>
 
     <div class="group rise" style="--i:3" id="lg-mode">
-      <div class="label"><b>Что скачать</b><span id="l-mode-note"></span></div>
+      <div class="label"><b data-i18n="what"></b><span id="l-mode-note"></span></div>
       <div class="seg" data-key="lmode">
-        <button type="button" data-v="video">Видео со звуком</button>
-        <button type="button" data-v="audio">Только звук</button>
+        <button type="button" data-v="video" data-i18n="video_audio"></button>
+        <button type="button" data-v="audio" data-i18n="audio_only"></button>
       </div>
     </div>
     <div class="group rise" style="--i:3" id="lg-audio">
-      <div class="label"><b>Формат звука</b><span>файлы с других сайтов: как есть или MP3</span></div>
+      <div class="label"><b data-i18n="audio_format"></b><span data-i18n="other_sites"></span></div>
       <div class="seg" data-key="audio_format">
         <button type="button" data-v="m4a">M4A</button>
         <button type="button" data-v="opus">Opus</button>
@@ -363,7 +369,7 @@
       </div>
     </div>
     <div class="group rise" style="--i:3" id="lg-mp3">
-      <div class="label"><b>Битрейт MP3</b><span>перекодирование через ffmpeg</span></div>
+      <div class="label"><b data-i18n="mp3_bitrate"></b><span data-i18n="via_ffmpeg"></span></div>
       <div class="seg" data-key="mp3_quality">
         <button type="button" data-v="320k">320</button>
         <button type="button" data-v="256k">256</button>
@@ -374,9 +380,9 @@
       </div>
     </div>
     <div class="group rise" style="--i:3" id="lg-quality">
-      <div class="label"><b>Качество видео</b><span>MP4; если такого нет — ближайшее ниже</span></div>
+      <div class="label"><b data-i18n="video_quality"></b><span data-i18n="quality_note"></span></div>
       <div class="seg" data-key="lheight">
-        <button type="button" data-v="">Лучшее</button>
+        <button type="button" data-v="" data-i18n="best"></button>
         <button type="button" data-v="2160">4K</button>
         <button type="button" data-v="1080">1080p</button>
         <button type="button" data-v="720">720p</button>
@@ -384,27 +390,27 @@
       </div>
     </div>
     <div class="group rise" style="--i:4">
-      <div class="label"><b>Метаданные</b></div>
-      <label class="switch"><span>Теги: название, исполнитель, альбом</span><input type="checkbox" id="l-tags" checked></label>
-      <label class="switch"><span>Обложка внутри файла</span><input type="checkbox" id="l-cover" checked></label>
+      <div class="label"><b data-i18n="metadata"></b></div>
+      <label class="switch"><span data-i18n="tags_music"></span><input type="checkbox" id="l-tags" checked></label>
+      <label class="switch"><span data-i18n="cover"></span><input type="checkbox" id="l-cover" checked></label>
     </div>
     <div class="group rise" style="--i:5">
-      <div class="label"><b>Имя файла</b></div>
-      <input class="field" id="l-template" style="width:100%;padding:10px 12px" spellcheck="false" aria-label="Шаблон имени" value="{title}">
-      <div class="preview">Поля: {title} {author} {id} {height} {ext}</div>
+      <div class="label"><b data-i18n="filename"></b></div>
+      <input class="field" id="l-template" style="width:100%;padding:10px 12px" spellcheck="false" data-i18n-aria="template" value="{title}">
+      <div class="preview"><span data-i18n="fields"></span> {title} {author} {id} {height} {ext}</div>
     </div>
-    <button class="btn big rise" style="--i:6" id="l-go" type="button">Скачать</button>
-    <div class="hint">По три файла одновременно. Браузер может один раз спросить, можно ли сайту скачивать несколько файлов.</div>
+    <button class="btn big rise" style="--i:6" id="l-go" type="button" data-i18n="download"></button>
+    <div class="hint" data-i18n="list_hint"></div>
   </section>
 
   <section class="downloads" id="downloads" hidden>
-    <h3>Загрузки</h3>
+    <h3 data-i18n="downloads"></h3>
     <div id="jobs"></div>
   </section>
 
   <footer>
-    <p>fast-dlp · те же источники, что в командной строке · встроенный муксер</p>
-    <p>Ссылка на скачивание одноразовая. Доставка подтверждается, когда браузер получил последний байт.</p>
+    <p data-i18n="foot1"></p>
+    <p data-i18n="foot2"></p>
   </footer>
 </main>
 
@@ -420,7 +426,92 @@
   };
   const jobs = new Map();
 
-  const size = (n) => !n ? "0" : n >= 1024 * MB ? (n / 1024 / MB).toFixed(2) + " ГиБ" : n >= MB ? (n / MB).toFixed(n >= 100 * MB ? 0 : 1) + " МиБ" : Math.max(1, Math.round(n / 1024)) + " КиБ";
+  // -- language: the browser's (ru -> Russian, anything else -> English), or the one picked --
+  const L = {
+    ru: {
+      lead: "YouTube до 4K, Spotify, Яндекс Музыка, VK, SoundCloud, TikTok, Pinterest, Pornhub, плейлисты, поиск и прямые ссылки — всё, что берёт fast-dlp в командной строке. Файл собирается на лету и идёт к вам потоком: на сервере ничего не сохраняется.",
+      url_ph: "Ссылка или поиск: исполнитель - название", url_aria: "Ссылка или поисковый запрос", find: "Найти",
+      what: "Что скачать", as_is: "Как есть", audio_mp3: "Звук в MP3", video_audio: "Видео со звуком", audio_only: "Только звук",
+      video_only: "Только видео", format: "Формат", audio_format: "Формат звука", quality: "Качество", codec: "Кодек видео",
+      auto: "Авто", mp3_bitrate: "Битрейт MP3", via_ffmpeg: "перекодирование через ffmpeg", section: "Отрывок",
+      section_note: "только нужная часть, без ffmpeg; режется по ключевым кадрам", start: "Начало", end: "Конец", end_ph: "конец",
+      metadata: "Метаданные", tags_video: "Теги: название, автор, ссылка", tags_music: "Теги: название, исполнитель, альбом",
+      cover: "Обложка внутри файла", filename: "Имя файла", template: "Шаблон имени", fields: "Поля:", file: "Файл:",
+      connections: "Соединений", download: "Скачать", preparing: "Готовлю…", all: "Все", none: "Ничего", invert: "Наоборот",
+      other_sites: "файлы с других сайтов: как есть или MP3", video_quality: "Качество видео",
+      quality_note: "MP4; если такого нет — ближайшее ниже", best: "Лучшее",
+      list_hint: "По три файла одновременно. Браузер может один раз спросить, можно ли сайту скачивать несколько файлов.",
+      downloads: "Загрузки", foot1: "fast-dlp · те же источники, что в командной строке · встроенный муксер",
+      foot2: "Ссылка на скачивание одноразовая. Доставка подтверждается, когда браузер получил последний байт.",
+      error: "Ошибка. ", kib: "КиБ", mib: "МиБ", gib: "ГиБ", per_s: "/с", no_ffmpeg: "на сервере нет ffmpeg", now: "сейчас {x}",
+      aac_note: "AAC, без перекодирования", opus_note: "Opus в WebM, без перекодирования", mp3_note: "MP3 через ffmpeg",
+      cut_of: "{a} — {b} · {len} из {all}", cut_bad: "Время: 1:20, 80 или 1m20s; конец позже начала",
+      hls_note: "HLS: сегменты по порядку, без перекодирования", bytes_note: "{c}, байт в байт", size_later: "{c} · размер станет известен по ходу",
+      tracks_yt: "треки ищутся на YouTube", chosen: "выбрано {n} из {total}", shown_first: " (показаны первые {n} из {total})",
+      download_n: "Скачать {n} {files}", files: ["файл", "файла", "файлов"], none_chosen: "Ничего не выбрано",
+      items: ["пункт", "пункта", "пунктов"], views: "{n} просмотров", search_title: "Поиск «{q}»", list: "Список",
+      ready: "Готовится", streaming: "Передаётся", confirming: "Подтверждение", delivered: "Доставлено", unconfirmed: "Отправлено",
+      aborted: "Прервано", failed: "Ошибка", again: "Скачать снова", of: "{a} из {b}", in_s: "за {s} с",
+      not_confirmed: "браузер не подтвердил получение", aborted_note: "браузер прервал загрузку; ссылку можно открыть снова",
+      sites: { all: "все источники", web: "Файл", yandex: "Яндекс Музыка" },
+    },
+    en: {
+      lead: "YouTube up to 4K, Spotify, Yandex Music, VK, SoundCloud, TikTok, Pinterest, Pornhub, playlists, search and direct links — everything fast-dlp takes on the command line. The file is put together on the fly and streamed to you: nothing is stored on the server.",
+      url_ph: "A link, or search: artist - title", url_aria: "Link or search query", find: "Find",
+      what: "What to get", as_is: "As is", audio_mp3: "Audio as MP3", video_audio: "Video with audio", audio_only: "Audio only",
+      video_only: "Video only", format: "Format", audio_format: "Audio format", quality: "Quality", codec: "Video codec",
+      auto: "Auto", mp3_bitrate: "MP3 bitrate", via_ffmpeg: "re-encoded with ffmpeg", section: "Section",
+      section_note: "only the part you need, no ffmpeg; cut at keyframes", start: "Start", end: "End", end_ph: "end",
+      metadata: "Metadata", tags_video: "Tags: title, author, link", tags_music: "Tags: title, artist, album",
+      cover: "Cover art inside the file", filename: "File name", template: "Name template", fields: "Fields:", file: "File:",
+      connections: "Connections", download: "Download", preparing: "Preparing…", all: "All", none: "None", invert: "Invert",
+      other_sites: "files from other sites: as is or MP3", video_quality: "Video quality",
+      quality_note: "MP4; if missing, the nearest below", best: "Best",
+      list_hint: "Three files at a time. The browser may ask once whether this site may download several files.",
+      downloads: "Downloads", foot1: "fast-dlp · the same sources as the command line · built-in muxer",
+      foot2: "Download links are one-time. Delivery is confirmed once the browser has the last byte.",
+      error: "Error. ", kib: "KiB", mib: "MiB", gib: "GiB", per_s: "/s", no_ffmpeg: "no ffmpeg on the server", now: "now {x}",
+      aac_note: "AAC, no re-encoding", opus_note: "Opus in WebM, no re-encoding", mp3_note: "MP3 through ffmpeg",
+      cut_of: "{a} — {b} · {len} of {all}", cut_bad: "Times: 1:20, 80 or 1m20s; the end after the start",
+      hls_note: "HLS: segments in order, no re-encoding", bytes_note: "{c}, byte for byte", size_later: "{c} · the size shows up on the way",
+      tracks_yt: "tracks are found on YouTube", chosen: "{n} of {total} selected", shown_first: " (first {n} of {total} shown)",
+      download_n: "Download {n} {files}", files: ["file", "files"], none_chosen: "Nothing selected",
+      items: ["item", "items"], views: "{n} views", search_title: "Search “{q}”", list: "List",
+      ready: "Preparing", streaming: "Sending", confirming: "Confirming", delivered: "Delivered", unconfirmed: "Sent",
+      aborted: "Stopped", failed: "Error", again: "Download again", of: "{a} of {b}", in_s: "in {s}s",
+      not_confirmed: "the browser did not confirm receipt", aborted_note: "the browser stopped the download; the link can be opened again",
+      sites: { all: "all sources", web: "File", yandex: "Yandex Music" },
+    },
+  };
+  const SITE = { youtube: "YouTube", ytmusic: "YT Music", spotify: "Spotify", vk: "VK", soundcloud: "SoundCloud",
+                 tiktok: "TikTok", pinterest: "Pinterest", pornhub: "Pornhub", steam: "Steam" };
+  let LANG = "en";
+  try { LANG = localStorage.getItem("fast-dlp-lang") || ""; } catch (e) { LANG = ""; }
+  if (!L[LANG]) LANG = (navigator.languages || [navigator.language || ""])[0].toLowerCase().startsWith("ru") ? "ru" : "en";
+  const T = (key, vars) => { const s = L[LANG][key]; return vars ? s.replace(/\{(\w+)\}/g, (m, k) => (k in vars ? vars[k] : m)) : s; };
+  const siteName = (s) => L[LANG].sites[s] || SITE[s] || s || "";
+  const plural = (n, forms) => {
+    if (forms.length === 2) return n === 1 ? forms[0] : forms[1];
+    const a = n % 10, b = n % 100;
+    return a === 1 && b !== 11 ? forms[0] : a >= 2 && a <= 4 && (b < 10 || b >= 20) ? forms[1] : forms[2];
+  };
+  function applyLang() {
+    document.documentElement.lang = LANG;
+    document.querySelectorAll("[data-i18n]").forEach((el) => { el.textContent = T(el.dataset.i18n); });
+    document.querySelectorAll("[data-i18n-ph]").forEach((el) => { el.placeholder = T(el.dataset.i18nPh); });
+    document.querySelectorAll("[data-i18n-aria]").forEach((el) => { el.setAttribute("aria-label", T(el.dataset.i18nAria)); });
+    document.querySelectorAll(".langs button").forEach((b) => b.classList.toggle("on", b.dataset.lang === LANG));
+    $("error").dataset.prefix = T("error");
+  }
+  document.querySelectorAll(".langs button").forEach((b) => b.addEventListener("click", () => {
+    LANG = b.dataset.lang;
+    try { localStorage.setItem("fast-dlp-lang", LANG); } catch (e) { /* private mode: this visit only */ }
+    applyLang();
+    if (S.info) { paintHead(); if (S.info.kind === "list") labelRows(); render(); }
+    for (const j of jobs.values()) paintJob(j.data);
+  }));
+
+  const size = (n) => !n ? "0" : n >= 1024 * MB ? (n / 1024 / MB).toFixed(2) + " " + T("gib") : n >= MB ? (n / MB).toFixed(n >= 100 * MB ? 0 : 1) + " " + T("mib") : Math.max(1, Math.round(n / 1024)) + " " + T("kib");
   const clock = (s) => { s = Math.max(0, Math.round(s)); const h = Math.floor(s / 3600), m = Math.floor(s % 3600 / 60), x = String(s % 60).padStart(2, "0"); return h ? `${h}:${String(m).padStart(2, "0")}:${x}` : `${m}:${x}`; };
   const parseTime = (t) => {
     t = (t || "").trim().toLowerCase(); if (!t) return null;
@@ -499,7 +590,7 @@
     $("g-audio").hidden = !audio;
     $("g-mp3").hidden = !(audio && S.audio_format === "mp3");
     $("mp3-btn").disabled = !S.info.ffmpeg;
-    $("mp3-btn").title = S.info.ffmpeg ? "" : "на сервере нет ffmpeg";
+    $("mp3-btn").title = S.info.ffmpeg ? "" : T("no_ffmpeg");
     if (!S.info.ffmpeg && S.audio_format === "mp3") S.audio_format = "m4a";
 
     // heights for the container
@@ -513,7 +604,7 @@
       const t = document.createElement("span"); t.className = "t num";
       const s = document.createElement("span"); s.className = "s num";
       if (v === "auto") {
-        t.textContent = "Лучшее"; const top = pool[0]; s.textContent = top ? `${top.height}p${top.fps > 30 ? top.fps : ""}` : "—";
+        t.textContent = T("best"); const top = pool[0]; s.textContent = top ? `${top.height}p${top.fps > 30 ? top.fps : ""}` : "—";
         b.classList.toggle("on", !S.height);
         b.onclick = () => { S.height = null; S.fps = null; render(); };
       } else {
@@ -533,9 +624,9 @@
     $("g-codec").hidden = audio || S.container !== "mp4" || codecs.size < 2;
     document.querySelectorAll('[data-key="codec"] button').forEach((b) => { b.disabled = b.dataset.v && !codecs.has(b.dataset.v); });
     if (S.codec && !codecs.has(S.codec)) S.codec = "";
-    $("codec-note").textContent = v && !S.codec ? `сейчас ${codecName[v.codec] || v.codec}` : "";
+    $("codec-note").textContent = v && !S.codec ? T("now", { x: codecName[v.codec] || v.codec }) : "";
     $("container-note").textContent = S.container === "mp4" ? "H.264 / AV1 + AAC" : "VP9 + Opus";
-    $("audio-note").textContent = { m4a: "AAC, без перекодирования", opus: "Opus в WebM, без перекодирования", mp3: "MP3 через ffmpeg" }[S.audio_format];
+    $("audio-note").textContent = T({ m4a: "aac_note", opus: "opus_note", mp3: "mp3_note" }[S.audio_format]);
     $("quality-note").textContent = v ? `${v.width}×${v.height}` : "";
     $("rg-note").textContent = audio ? ", ReplayGain" : "";
 
@@ -546,10 +637,10 @@
     const sec = section(), dur = S.info.duration || 1;
     if (sec && !sec.bad) {
       $("tl").style.left = (sec.s / dur * 100) + "%"; $("tl").style.width = ((sec.e - sec.s) / dur * 100) + "%";
-      $("cut-note").textContent = `${clock(sec.s)} — ${clock(sec.e)} · ${clock(sec.e - sec.s)} из ${clock(dur)}`;
+      $("cut-note").textContent = T("cut_of", { a: clock(sec.s), b: clock(sec.e), len: clock(sec.e - sec.s), all: clock(dur) });
     } else {
       $("tl").style.left = "0"; $("tl").style.width = sec && sec.bad ? "0" : "100%";
-      $("cut-note").textContent = sec && sec.bad ? "Время: 1:20, 80 или 1m20s; конец позже начала" : "";
+      $("cut-note").textContent = sec && sec.bad ? T("cut_bad") : "";
     }
 
     // summary
@@ -588,13 +679,13 @@
     $("g-mp3").hidden = !mp3;
     $("g-meta").hidden = !mp3;
     $("fmp3-btn").disabled = !d.ffmpeg;
-    $("fmp3-btn").title = d.ffmpeg ? "" : "на сервере нет ffmpeg";
+    $("fmp3-btn").title = d.ffmpeg ? "" : T("no_ffmpeg");
     if (!d.ffmpeg && mp3) S.fmode = "original";
-    $("file-note").textContent = mp3 ? "перекодирование через ffmpeg" : d.container === "HLS" ? "HLS: сегменты по порядку, без перекодирования" : `${d.container}, байт в байт`;
+    $("file-note").textContent = mp3 ? T("via_ffmpeg") : d.container === "HLS" ? T("hls_note") : T("bytes_note", { c: d.container });
     $("rg-note").textContent = "";
     document.querySelectorAll(".seg").forEach(paintSeg);
     $("size").textContent = mp3 ? (d.duration ? "≈ " + size(d.duration * KBPS[S.mp3_quality] * 125) : "—") : d.size ? size(d.size) : "—";
-    $("what").textContent = mp3 ? "MP3 " + S.mp3_quality.replace("k", "") : d.size ? d.container : `${d.container} · размер станет известен по ходу`;
+    $("what").textContent = mp3 ? "MP3 " + S.mp3_quality.replace("k", "") : d.size ? d.container : T("size_later", { c: d.container });
     S.template = $("template").value || "{title}";
     const ext = mp3 ? "mp3" : d.container === "HLS" ? "ts|mp4" : d.container.toLowerCase();
     const name = fill(S.template, { title: d.title, author: d.author, uploader: d.author, id: d.id, height: "", fps: "", ext });
@@ -604,7 +695,6 @@
   }
 
   // -- lists -----------------------------------------------------------------------------------
-  const plural = (n, one, few, many) => { const a = n % 10, b = n % 100; return a === 1 && b !== 11 ? one : a >= 2 && a <= 4 && (b < 10 || b >= 20) ? few : many; };
 
   function renderList() {
     const d = S.info, audio = S.lmode === "audio";
@@ -615,16 +705,16 @@
     $("lg-mp3").hidden = !(S.audio_format === "mp3" && (audio || !hasYoutube));
     document.querySelectorAll(".mp3-any").forEach((b) => { b.disabled = !d.ffmpeg; });
     if (!d.ffmpeg && S.audio_format === "mp3") S.audio_format = "m4a";
-    $("l-mode-note").textContent = d.entries.some((e) => e.kind === "track") ? "треки ищутся на YouTube" : "";
+    $("l-mode-note").textContent = d.entries.some((e) => e.kind === "track") ? T("tracks_yt") : "";
     document.querySelectorAll("#list .seg").forEach(paintSeg);
     document.querySelectorAll("#entries .entry").forEach((row) => {
       const on = S.sel.has(+row.dataset.n);
       row.classList.toggle("off", !on); row.querySelector("input").checked = on;
     });
     const n = S.sel.size;
-    $("l-count").textContent = `выбрано ${n} из ${d.entries.length}` + (d.count > d.entries.length ? ` (показаны первые ${d.entries.length} из ${d.count})` : "");
+    $("l-count").textContent = T("chosen", { n, total: d.entries.length }) + (d.count > d.entries.length ? T("shown_first", { n: d.entries.length, total: d.count }) : "");
     $("l-go").disabled = !n;
-    $("l-go").textContent = n ? `Скачать ${n} ${plural(n, "файл", "файла", "файлов")}` : "Ничего не выбрано";
+    $("l-go").textContent = n ? T("download_n", { n, files: plural(n, L[LANG].files) }) : T("none_chosen");
   }
 
   function showList(d) {
@@ -633,9 +723,7 @@
     S.lmode = music ? "audio" : "video";
     $("l-cover").checked = music;
     $("l-template").value = music ? "{author} - {title}" : "{title}";
-    $("l-site").textContent = d.site;
-    $("l-title").textContent = d.title;
-    $("l-sub").textContent = `${d.count} ${plural(d.count, "пункт", "пункта", "пунктов")}`;
+    paintHead();
     $("entries").replaceChildren(...d.entries.map((e, i) => {
       const row = document.createElement("label"); row.className = "entry"; row.dataset.n = e.n;
       if (i < 30) row.style.animationDelay = i * 18 + "ms";
@@ -645,11 +733,29 @@
       if (e.thumbnail) pic.style.backgroundImage = `url("${encodeURI(e.thumbnail)}")`;
       const tt = document.createElement("span"); tt.className = "tt";
       const b = document.createElement("b"); b.textContent = e.title;
-      const s = document.createElement("span"); s.textContent = [e.author, e.site].filter(Boolean).join(" · ");
+      const s = document.createElement("span"); s.className = "who"; s.dataset.author = e.author || ""; s.dataset.site = e.site || "";
       tt.append(b, s);
       const dur = document.createElement("span"); dur.className = "d num"; dur.textContent = e.duration ? clock(e.duration) : "";
       row.append(cb, pic, tt, dur); return row;
     }));
+    labelRows();
+  }
+  function labelRows() {
+    document.querySelectorAll("#entries .who").forEach((s) => { s.textContent = [s.dataset.author, siteName(s.dataset.site)].filter(Boolean).join(" · "); });
+  }
+  // Title lines of the current item or list, in the current language.
+  function paintHead() {
+    const d = S.info;
+    if (d.kind === "list") {
+      $("l-site").textContent = siteName(d.site);
+      $("l-title").textContent = d.search ? T("search_title", { q: d.query }) : d.title || T("list");
+      $("l-sub").textContent = `${d.count} ${plural(d.count, L[LANG].items)}`;
+      return;
+    }
+    const via = d.track ? `${siteName(d.site)} → YouTube` : d.site !== "youtube" ? siteName(d.site) : "";
+    const views = d.views ? T("views", { n: d.views.toLocaleString(LANG === "ru" ? "ru-RU" : "en-US") }) : "";
+    $("sub").textContent = [d.author, via, views].filter(Boolean).join(" · ");
+    $("end").placeholder = d.duration ? clock(d.duration) : T("end_ph");
   }
   $("l-all").onclick = () => { S.sel = new Set(S.info.entries.map((e) => e.n)); render(); };
   $("l-none").onclick = () => { S.sel.clear(); render(); };
@@ -663,7 +769,7 @@
     showError(""); $("result").hidden = true; $("list").hidden = true; $("loading").hidden = false; $("find").disabled = true;
     document.body.classList.add("busy");
     try {
-      const r = await fetch("/api/info?url=" + encodeURIComponent(url));
+      const r = await fetch("/api/info?url=" + encodeURIComponent(url), { headers: { "X-Lang": LANG } });
       const data = await r.json();
       if (!r.ok) throw new Error(data.error || r.statusText);
       S.info = data; S.url = url; S.height = null; S.fps = null; S.codec = "";
@@ -682,9 +788,7 @@
       $("len").textContent = data.duration ? clock(data.duration) : "";
       $("len").hidden = !data.duration;
       $("title").textContent = data.title;
-      const via = data.track ? `${data.site} → YouTube` : data.site !== "YouTube" ? data.site : "";
-      $("sub").textContent = [data.author, via, data.views ? data.views.toLocaleString("ru-RU") + " просмотров" : ""].filter(Boolean).join(" · ");
-      $("end").placeholder = data.duration ? clock(data.duration) : "конец";
+      paintHead();
       if (!$("templates").childElementCount) {
         for (const t of data.templates) {
           const b = document.createElement("button"); b.type = "button"; b.className = "chip"; b.dataset.t = t;
@@ -709,8 +813,6 @@
   $("conn").addEventListener("input", () => { S.connections = +$("conn").value; $("conn-v").textContent = S.connections; });
 
   // -- download --------------------------------------------------------------------------------
-  const STATE = { ready: "Готовится", streaming: "Передаётся", confirming: "Подтверждение", delivered: "Доставлено",
-                  unconfirmed: "Отправлено", aborted: "Прервано", failed: "Ошибка" };
 
   $("go").addEventListener("click", async () => {
     const file = S.info.kind === "file";
@@ -720,16 +822,16 @@
                    tags: $("tags").checked, cover: $("cover").checked, template: S.template,
                    start: sec ? $("start").value : "", end: sec ? $("end").value : "" };
     if (file) Object.assign(body, S.fmode === "mp3" ? { mode: "audio", audio_format: "mp3" } : { mode: "original" });
-    $("go").disabled = true; $("go").textContent = "Готовлю…"; showError("");
+    $("go").disabled = true; $("go").textContent = T("preparing"); showError("");
     document.body.classList.add("busy");
     try {
-      const r = await fetch("/api/jobs", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+      const r = await fetch("/api/jobs", { method: "POST", headers: { "Content-Type": "application/json", "X-Lang": LANG }, body: JSON.stringify(body) });
       const job = await r.json();
       if (!r.ok) throw new Error(job.error || r.statusText);
       addJob(job);
       start(job);
     } catch (e) { showError(e.message); }
-    finally { $("go").disabled = false; $("go").textContent = "Скачать"; document.body.classList.remove("busy"); }
+    finally { $("go").disabled = false; $("go").textContent = T("download"); document.body.classList.remove("busy"); }
   });
 
   // A list goes out three files at a time: each running download holds one of the six
@@ -759,7 +861,7 @@
   }
   async function runOne(item) {
     try {
-      const r = await fetch("/api/jobs", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(item.body) });
+      const r = await fetch("/api/jobs", { method: "POST", headers: { "Content-Type": "application/json", "X-Lang": LANG }, body: JSON.stringify(item.body) });
       const job = await r.json();
       if (!r.ok) throw new Error(job.error || r.statusText);
       addJob(job);
@@ -781,7 +883,7 @@
     const el = document.createElement("div"); el.className = "job";
     el.innerHTML = `<div class="top"><div class="name"></div><span class="state"></span></div>
       <div class="bar"><i></i></div><div class="meta num"><span class="l"></span><span class="r"></span></div>
-      <div class="actions" hidden><button class="btn ghost" type="button">Скачать снова</button></div>`;
+      <div class="actions" hidden><button class="btn ghost" type="button"></button></div>`;
     el.querySelector(".name").textContent = job.filename;
     el.querySelector(".actions button").onclick = () => start(jobs.get(job.token).data);
     $("jobs").prepend(el); $("downloads").hidden = false;
@@ -798,19 +900,20 @@
     el.className = "job " + d.state + (d.size == null && d.state === "streaming" ? " indeterminate" : "");
     const st = el.querySelector(".state");
     st.className = "state " + d.state;
-    if (d.state === "delivered") st.innerHTML = '<svg class="check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>Доставлено';
-    else st.textContent = STATE[d.state] || d.state;
+    if (d.state === "delivered") st.innerHTML = '<svg class="check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>' + T("delivered");
+    else st.textContent = L[LANG][d.state] && typeof L[LANG][d.state] === "string" ? T(d.state) : d.state;
     const pct = d.size ? Math.min(100, d.sent / d.size * 100) : (["delivered", "unconfirmed", "confirming"].includes(d.state) ? 100 : 0);
     el.querySelector(".bar i").style.width = pct + "%";
     const l = el.querySelector(".l"), r = el.querySelector(".r");
-    l.textContent = d.size ? `${size(d.sent)} из ${size(d.size)}` : d.sent ? size(d.sent) : "";
-    if (d.state === "streaming") r.textContent = d.speed ? size(d.speed) + "/с" : "";
-    else if (d.state === "delivered") r.textContent = d.elapsed != null ? `за ${d.elapsed.toFixed(1)} с` : "";
-    else if (d.state === "unconfirmed") r.textContent = "браузер не подтвердил получение";
+    l.textContent = d.size ? T("of", { a: size(d.sent), b: size(d.size) }) : d.sent ? size(d.sent) : "";
+    if (d.state === "streaming") r.textContent = d.speed ? size(d.speed) + T("per_s") : "";
+    else if (d.state === "delivered") r.textContent = d.elapsed != null ? T("in_s", { s: d.elapsed.toFixed(1) }) : "";
+    else if (d.state === "unconfirmed") r.textContent = T("not_confirmed");
+    else if (d.state === "aborted") r.textContent = T("aborted_note");
     else if (d.error) r.textContent = d.error;
     else r.textContent = "";
     el.querySelector(".actions").hidden = !d.download || !(["aborted", "failed"].includes(d.state) || stale);
-    el.querySelector(".actions button").textContent = d.state === "ready" ? "Скачать" : "Скачать снова";
+    el.querySelector(".actions button").textContent = d.state === "ready" ? T("download") : T("again");
   }
 
   const FINAL = ["delivered", "unconfirmed", "failed", "aborted"];
@@ -830,6 +933,7 @@
     polling = setTimeout(tick, 150);
   }
 
+  applyLang();
   const q = new URLSearchParams(location.search).get("url");
   if (q) { $("url").value = q; find(q); }
 })();

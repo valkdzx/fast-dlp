@@ -18,10 +18,10 @@ from concurrent.futures import ThreadPoolExecutor
 
 from .. import download, hls, mp3, net, search, stream
 from ..utils import FastDlpError
+from .texts import WebError
 
-SITES = {"youtube": "YouTube", "ytmusic": "YT Music", "spotify": "Spotify", "yandex": "Яндекс Музыка",
-         "vk": "VK", "soundcloud": "SoundCloud", "tiktok": "TikTok", "pinterest": "Pinterest",
-         "pornhub": "Pornhub", "steam": "Steam", "web": "Файл"}
+SITES = ("youtube", "ytmusic", "spotify", "yandex", "vk", "soundcloud", "tiktok", "pinterest", "pornhub",
+         "steam", "web")                     # the page names them in its language
 MUSIC = {"ytmusic", "spotify", "yandex", "vk", "soundcloud"}
 EXTRA_MIME = {"ts": "video/mp2t", "aac": "audio/aac", "mp3": "audio/mpeg", "flac": "audio/flac",
               "ogg": "audio/ogg", "mkv": "video/x-matroska", "mov": "video/quicktime"}
@@ -35,28 +35,28 @@ def cli_args():
 
 
 def expand(text, args):
-    """-> (list title or None, [job, ...]). One job without a title is a single item."""
+    """-> (list title or None, [job, ...]). One job without a title is a single item; a search
+    or a list without a name has the title ""."""
     from .. import cli
     text = (text or "").strip()
     if not text:
-        raise FastDlpError("вставьте ссылку или напишите, что искать")
+        raise WebError("empty")
     if not search.looks_like_target(text):
         jobs, _ = search.search_all(text)
         if not jobs:
-            raise FastDlpError(f"ничего не нашлось по запросу «{text}»")
-        return f"Поиск «{text}»", jobs
+            raise WebError("nothing_found", q=text)
+        return "", jobs
     try:
         jobs = cli.expand(text, args)
     except FastDlpError as e:
         if str(e).startswith(("not a supported", "not a YouTube")):
-            raise FastDlpError("эту ссылку fast-dlp не понимает: YouTube, Spotify, Яндекс Музыка, VK, "
-                               "SoundCloud, TikTok, Pinterest, Pornhub или прямая ссылка на файл")
+            raise WebError("unsupported")
         raise
     if not jobs:
-        raise FastDlpError("по ссылке нечего скачать")
+        raise WebError("empty_link")
     title = jobs[0].get("playlist")
     if title or len(jobs) > 1:
-        return title or "Список", jobs
+        return title or "", jobs
     return None, jobs
 
 
@@ -88,7 +88,7 @@ def entry(n, job):
         thumb = f"https://i.ytimg.com/vi/{job['video_id']}/mqdefault.jpg"
     s = site(job)
     return {"n": n, "title": title, "author": author, "duration": cli._job_duration(job) or 0,
-            "thumbnail": thumb, "site": SITES.get(s, s), "kind": kind(job),
+            "thumbnail": thumb, "site": s, "kind": kind(job),
             "audio": bool(track) or s in MUSIC or bool(job.get("audio"))}
 
 
@@ -100,7 +100,7 @@ def resolve_spec(job):
     except yandex.Preview:
         return None
     if spec["kind"] == "steamcmd":
-        raise FastDlpError("Steam Workshop качается через steamcmd: это только в командной строке")
+        raise WebError("steam")
     return spec
 
 
@@ -182,7 +182,7 @@ def _hls_media(media_url, headers, audio_only, connections):
     """(ext, chunk generator) of one media playlist, segments in order."""
     kind_, segments, init = hls.parse(hls._get(media_url, headers), media_url)
     if kind_ != "media" or not segments:
-        raise FastDlpError("в HLS-плейлисте нет сегментов")
+        raise WebError("hls_empty")
     keys = {}
     for s in segments:
         if s["key"] and s["key"]["uri"] not in keys:
@@ -197,7 +197,7 @@ def _hls_media(media_url, headers, audio_only, connections):
                 break
             threading.Event().wait(0.3 * (attempt + 1))
         else:
-            raise FastDlpError(f"HLS: сегмент {i} не отдался (HTTP {status})")
+            raise WebError("hls_segment", i=i, status=status)
         if s["key"]:
             iv = s["key"]["iv"]
             iv = bytes.fromhex(iv[2:].zfill(32)) if iv else s["seq"].to_bytes(16, "big")
@@ -260,13 +260,13 @@ def direct_output(job, spec, opts, meta, ffmpeg):
     to_mp3 = opts["mode"] == "audio" and opts["audio_format"] == "mp3"
     conns = opts["connections"]
     if to_mp3 and not ffmpeg:
-        raise FastDlpError("MP3 нужен ffmpeg на сервере")
+        raise WebError("mp3_ffmpeg")
     if spec["kind"] == "hls":
         audio_only = bool(job.get("audio")) or to_mp3
         playlists = hls.choose(spec["url"], headers, audio_only, opts.get("height"))
         if len(playlists) == 2:
             if not ffmpeg:
-                raise FastDlpError("здесь видео и звук идут отдельно: для склейки нужен ffmpeg на сервере")
+                raise WebError("join_ffmpeg")
             ext, source = "mp4", _ffmpeg_join(ffmpeg, playlists[0], playlists[1], headers)
         else:
             ext, source = _hls_media(playlists[0], headers, audio_only, conns)

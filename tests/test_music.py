@@ -71,7 +71,7 @@ class SearchDetectTest(unittest.TestCase):
         for t in ("https://youtu.be/x", "AbCdEfGh1_K", "ytsearch5:x", "spotify:track:abc", "music.yandex.ru/album/1",
                   "www.youtube.com/watch?v=x", "aqz-KE-bpKQ"):
             self.assertTrue(search.looks_like_target(t), t)
-        for t in ("исполнитель", "-", "название", "artist", "some song name"):
+        for t in ("исполнитель", "-", "название", "artist", "some song name", "Imagination", "Wonderwalls"):
             self.assertFalse(search.looks_like_target(t), t)
 
     def test_search_all_survives_a_dead_source(self):

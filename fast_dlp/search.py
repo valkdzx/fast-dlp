@@ -28,8 +28,11 @@ def looks_like_target(text):
     """A link, a search prefix or a bare video id - anything that is not plain words."""
     if _LINKISH.match(text) or "://" in text:
         return True
-    # A bare id: 11 chars of the id alphabet with something an English word would not have.
-    return bool(utils.VIDEO_ID_RE.match(text)) and bool(re.search(r"[A-Z0-9_-]", text))
+    # A bare id: 11 chars of the id alphabet with something a word would not have - a digit,
+    # - or _, or capitals inside it ("Imagination" and "Wonderwalls" are words, not ids).
+    if not utils.VIDEO_ID_RE.match(text):
+        return False
+    return bool(re.search(r"[0-9_-]", text)) or len(re.findall(r"[A-Z]", text[1:])) >= 2
 
 
 def _ytmusic(query, n):

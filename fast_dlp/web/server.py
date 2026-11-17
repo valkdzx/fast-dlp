@@ -25,7 +25,8 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 from .. import formats as fmt, lyrics, net, search, section, stream, utils
 from ..utils import FastDlpError
-from . import targets
+from . import targets, texts
+from .texts import WebError
 
 STATIC = os.path.join(os.path.dirname(os.path.abspath(__file__)), "static")
 VIDEO_TTL = 15 * 60          # player answers (stream URLs) are reused this long
@@ -101,7 +102,7 @@ class App:
     def video(self, text, fresh=False):
         vid = utils.extract_video_id(text or "")
         if not vid:
-            raise FastDlpError("это не ссылка на видео YouTube")
+            raise WebError("not_youtube")
         with self.lock:
             hit = self.videos.get(vid)
         if hit and not fresh and time.time() - hit[0] < VIDEO_TTL:
@@ -131,7 +132,7 @@ class App:
             hit = self.targets.get(key)
         if hit and not fresh and time.time() - hit[0] < VIDEO_TTL:
             return hit[1], hit[2]
-        vid = utils.extract_video_id(key)
+        vid = utils.extract_video_id(key) if search.looks_like_target(key) else None
         if vid and not re.search(r"[?&]list=", key):
             title, jobs = None, [{"source": "youtube", "video_id": vid, "playlist": None, "url": key}]
         else:
@@ -145,11 +146,11 @@ class App:
         n = body.get("entry")
         if n in (None, ""):
             if title is not None:
-                raise FastDlpError("это список: выберите, что из него скачать")
+                raise WebError("pick_entry")
             return jobs[0]
         n = _int(n, 0, len(jobs) - 1)
         if n is None:
-            raise FastDlpError("нет такого пункта в списке")
+            raise WebError("no_entry")
         return jobs[n]
 
     def job_video(self, job, fresh=False):
@@ -189,7 +190,8 @@ class App:
             first = jobs[0]
             searched = not search.looks_like_target(url.strip())
             return {"kind": "list", "title": title, "count": len(jobs), "search": searched,
-                    "site": "все источники" if searched else targets.SITES.get(targets.site(first), targets.site(first)),
+                    "query": url.strip() if searched else None,
+                    "site": "all" if searched else targets.site(first),
                     "entries": [targets.entry(n, j) for n, j in enumerate(jobs[:LIST_LIMIT])],
                     "ffmpeg": bool(self.ffmpeg), "templates": TEMPLATES}
         job = jobs[0]
@@ -209,7 +211,7 @@ class App:
                 size = None
         s = targets.site(job)
         return {"kind": "file", "id": job["id"], "title": job["title"], "author": job.get("author") or "",
-                "site": targets.SITES.get(s, s), "duration": job.get("duration") or 0,
+                "site": s, "duration": job.get("duration") or 0,
                 "thumbnail": job.get("cover_url"), "audio": bool(job.get("audio")),
                 "container": "HLS" if spec["kind"] == "hls" else (spec.get("ext") or "bin").upper(),
                 "size": size or None, "ffmpeg": bool(self.ffmpeg), "templates": TEMPLATES}
@@ -236,7 +238,7 @@ class App:
         thumb = thumbs[-1]["url"] if thumbs else f"https://i.ytimg.com/vi/{video.id}/hqdefault.jpg"
         return {"kind": "video", "id": video.id, "title": video.title, "author": video.author,
                 "duration": video.duration, "views": 0 if track else int(details.get("viewCount") or 0),
-                "site": targets.SITES.get(s, s), "track": bool(track),
+                "site": s, "track": bool(track),
                 "thumbnail": track.get("cover") or thumb,
                 "videos": sorted(videos, key=lambda v: (-v["height"], -v["fps"], v["container"], v["codec"])),
                 "audios": sorted(audios, key=lambda a: -a["bitrate"]),
@@ -263,9 +265,9 @@ class App:
             if body.get("end") not in (None, ""):
                 end = section.parse_time(str(body["end"]))
         except ValueError:
-            raise FastDlpError("время отрывка: 3:40, 220 или 3m40s")
+            raise WebError("bad_time")
         if start is not None and end is not None and end <= start:
-            raise FastDlpError("конец отрывка раньше начала")
+            raise WebError("time_order")
         o["start"], o["end"] = (start or 0.0, end) if (start or end) else (None, None)
         return o
 
@@ -394,6 +396,14 @@ class Handler(BaseHTTPRequestHandler):
             self.wfile.write(data)
 
     def _error(self, status, message):
+        """message: text, or an exception shown in the page's language."""
+        if isinstance(message, BaseException):
+            if isinstance(message, FastDlpError):
+                message = texts.message(message, texts.language(self.headers))
+            elif isinstance(message, OSError):
+                message = WebError("network", error=utils.net_error(message)).text(texts.language(self.headers))
+            else:
+                message = WebError("internal", error=repr(message)).text(texts.language(self.headers))
         self._send(status, {"error": message})
 
     def do_HEAD(self):
@@ -419,16 +429,21 @@ class Handler(BaseHTTPRequestHandler):
             if m:
                 job = self.app.job(m.group(1))
                 if not job:
-                    return self._error(404, "нет такой загрузки (ссылка одноразовая и живёт час)")
+                    return self._error(404, WebError("no_job"))
                 return self._send(200, job.public())
             m = re.fullmatch(r"/dl/([\w-]+)", path)
             if m:
                 return self._download(m.group(1))
             self._error(404, "not found")
         except FastDlpError as e:
-            self._error(400, str(e))
+            self._error(400, e)
         except (BrokenPipeError, ConnectionResetError, ConnectionAbortedError):
             self.close_connection = True
+        except OSError as e:                     # a site did not answer: say so, keep serving
+            self._error(502, e)
+        except Exception as e:
+            self.app.log(f"{self.path}: {e!r}")
+            self._error(500, e)
 
     def do_POST(self):
         if self.path != "/api/jobs":
@@ -436,13 +451,21 @@ class Handler(BaseHTTPRequestHandler):
         try:
             n = int(self.headers.get("Content-Length") or 0)
             body = json.loads(self.rfile.read(min(n, 65536)) or b"{}")
+            if not isinstance(body, dict):
+                raise ValueError("not an object")
+        except ValueError:                       # JSONDecodeError is a ValueError
+            return self._error(400, WebError("bad_json"))
+        try:
             self.app.sweep()
             job = self.app.create(body)
             self._send(200, job.public())
-        except (ValueError, json.JSONDecodeError):
-            self._error(400, "bad JSON")
         except FastDlpError as e:
-            self._error(400, str(e))
+            self._error(400, e)
+        except OSError as e:
+            self._error(502, e)
+        except Exception as e:
+            self.app.log(f"POST {self.path}: {e!r}")
+            self._error(500, e)
 
     def _static(self, name):
         with open(os.path.join(STATIC, name), "rb") as fh:
@@ -456,14 +479,14 @@ class Handler(BaseHTTPRequestHandler):
     def _download(self, token):
         job = self.app.job(token)
         if not job:
-            return self._error(404, "нет такой загрузки (ссылка одноразовая и живёт час)")
+            return self._error(404, WebError("no_job"))
         if self.command == "HEAD":
             return self._headers(job)
         with job.cond:
             if job.state in ("delivered", "unconfirmed"):
-                return self._error(410, "файл уже доставлен; ссылка одноразовая")
+                return self._error(410, WebError("delivered"))
             if job.state in ("streaming", "confirming"):
-                return self._error(409, "этот файл уже передаётся")
+                return self._error(409, WebError("busy"))
             job.state = "streaming"
         job.update(sent=0, started=time.time(), finished=None, error=None, attempts=job.attempts + 1)
         self.close_connection = True
@@ -486,7 +509,7 @@ class Handler(BaseHTTPRequestHandler):
                 self.wfile.write(b"0\r\n\r\n")
             self.wfile.flush()
         except (BrokenPipeError, ConnectionResetError, ConnectionAbortedError, socket.timeout):
-            job.update(sent=sent, state="aborted", error="браузер прервал загрузку; ссылку можно открыть снова",
+            job.update(sent=sent, state="aborted", error="the browser stopped the download",
                        finished=time.time())
             return
         except Exception as e:                   # headers are gone: closing tells the browser it failed
