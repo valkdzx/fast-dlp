@@ -124,7 +124,9 @@ def build_parser():
                    help="playlist/album entries processed at once (default 4)")
     p.add_argument("--range-mode", choices=["header", "param"], default="param",
                    help="send ranges as a Range header or as googlevideo's &range= (default)")
-    p.add_argument("-F", "--list-formats", action="store_true", help="list formats and exit")
+    p.add_argument("-F", "--list-formats", "--listformats", "-listformats", dest="list_formats", action="store_true",
+                   help="list every available format, video and audio apart, with what downloads by default "
+                        "and the -f value of each; for other sites: the file or the HLS variants")
     p.add_argument("-g", "--get-url", action="store_true",
                    help="print the media URLs to stdout instead of downloading: YouTube - one line per chosen "
                         "format (video, then audio; -f/-q/-x apply), a live stream - its HLS playlist, other "
@@ -389,6 +391,90 @@ def _audio_spec(args, forced_audio):
     return args.format
 
 
+def _pick_formats(video, job, args):
+    """The formats a download of this job takes, after -f / -x / --audio-format / -q / --codec."""
+    spec = _audio_spec(args, job["source"] in MUSIC_SOURCES or job.get("as_audio", False))
+    if spec.startswith("bestaudio-"):
+        wanted = "m4a" if spec.endswith("m4a") else "webm"
+        audio = [f for f in video.formats if fmt.kind(f) == "audio" and fmt.ext(f) == wanted]
+        return fmt.select(audio or video.formats, "bestaudio")
+    return fmt.select(video.formats, spec, args.max_height, args.codec)
+
+
+def list_formats(video, picked, args):
+    """-F for YouTube: a heading, the table, what downloads by default and how to ask for more."""
+    from .tui import fmt_duration
+    details = video.raw.get("videoDetails") or {}
+    head = [video.title, video.author, fmt_duration(video.duration) if video.duration else "", video.client]
+    print(" · ".join(str(x) for x in head if x))
+    print()
+    if details.get("isLive"):
+        print("live: -g prints the HLS playlist; the download records it")
+    print(fmt.table(video.formats, picked))
+    if picked:
+        extra = "".join(f" {flag}" for flag, on in (("-x", args.audio_only), (f"-q {args.max_height}", args.max_height),
+                                                    (f"--codec {args.codec}", args.codec),
+                                                    (f"--audio-format {args.audio_format}", args.audio_format != "best"),
+                                                    (f"-f {args.format}", args.format != "best")) if on)
+        print()
+        print(t("lf_default", extra=t("lf_with", flags=extra.strip()) if extra else "",
+                spec="+".join(fmt.format_id(f) for f in picked)))
+        # Alternatives worth knowing: H.264 (plays everywhere) with AAC, and audio alone.
+        try:
+            compat = fmt.select(video.formats, "best", min(args.max_height or 1080, 1080), "avc1")
+            alone = fmt.select(video.formats, "bestaudio")
+        except FastDlpError:
+            return
+        if fmt.codec(compat[0]).startswith("avc1"):
+            print(t("lf_examples", v=fmt.format_id(compat[0]), a=fmt.format_id(compat[1]), q=fmt.quality(compat[0]),
+                    ba=fmt.format_id(alone[0])))
+
+
+
+def list_direct_formats(job, spec, args):
+    """-F for other sites: the one file, or the variants of an HLS playlist."""
+    headers = dict(spec.get("headers") or {})
+    headers.setdefault("User-Agent", net.BROWSER_UA)
+    print(" · ".join(x for x in (job["title"], job.get("author"), job.get("site")) if x))
+    print()
+    if spec["kind"] == "steamcmd":
+        print(t("lf_steam"))
+        return
+    if spec["kind"] == "file":
+        size, ranges = spec.get("size") or 0, spec.get("ranges")
+        if not size or ranges is None:
+            size, ranges = _probe_size(spec["url"], headers)
+        print(t("lf_file", ext=(spec.get("ext") or "bin").upper(), size=utils.human_size(size) if size else "?",
+                host=urllib.parse.urlsplit(spec["url"]).hostname))
+        print("  " + t("lf_file_ranges" if ranges else "lf_file_single"))
+        return
+    text = hls._get(spec["url"], headers)
+    kind_, variants, audios = hls.parse(text, spec["url"])
+    if kind_ != "master":
+        print(t("lf_hls", n=1) + ": " + spec["url"].split("?")[0])
+        return
+    chosen = set(hls.choose(spec["url"], headers, job.get("audio") or args.audio_only, args.max_height))
+    rows = [(t("lf_quality"), t("lf_res"), t("lf_codec"), t("lf_bitrate"), "")]
+    for v in sorted(variants, key=lambda v: (hls._height(v), hls._bandwidth(v)), reverse=True):
+        h = hls._height(v)
+        fps = float(v.get("FRAME-RATE") or 0)
+        rows.append((f"{h}p{round(fps) if fps > 30 else ''}" if h else "audio", v.get("RESOLUTION", "—"),
+                     v.get("CODECS", "?"), t("lf_kbps", n=hls._bandwidth(v) // 1000),
+                     "*" if v["uri"] in chosen else ""))
+    print(t("lf_hls", n=len(variants)))
+    print(chr(10).join(fmt._grid(rows, right={3})))
+    if audios:
+        rows = [(t("lf_name"), t("lf_lang"), "")]
+        for a in audios:
+            rows.append((a.get("NAME") or a.get("GROUP-ID") or "?", a.get("LANGUAGE") or "—",
+                         "*" if a.get("uri") in chosen else ""))
+        print()
+        print(t("lf_hls_audio", n=len(audios)))
+        print(chr(10).join(fmt._grid(rows)))
+    print()
+    print(t("lf_hls_pick"))
+
+
 # -- one job ----------------------------------------------------------------------------
 
 MUSIC_SOURCES = ("spotify", "match")
@@ -481,6 +567,9 @@ def process_direct(extractor, job, args, ffmpeg):
               file=sys.stderr)
         fallback = dict(job, source="match", track=job["fallback_track"])
         return process(extractor, fallback, args, ffmpeg)
+    if args.list_formats:
+        list_direct_formats(job, spec, args)
+        return "done"
     if args.get_url:
         if spec["kind"] == "steamcmd":
             raise FastDlpError(f"{job['title']}: Steam Workshop items come through steamcmd, there is no URL")
@@ -629,8 +718,11 @@ def _process(extractor, job, args, ffmpeg):
         print(json.dumps(video.raw, ensure_ascii=False, indent=1))
         return "done"
     if args.list_formats:
-        print(f"[{video.client}] {video.title}")
-        print(fmt.table(video.formats))
+        try:
+            picked = _pick_formats(video, job, args)
+        except FastDlpError:
+            picked = []
+        list_formats(video, picked, args)
         return "done"
 
     details = video.raw.get("videoDetails") or {}
@@ -647,13 +739,7 @@ def _process(extractor, job, args, ffmpeg):
             return "done"
         return record_live(video, job, args, ffmpeg, template, upload_date)
 
-    spec = _audio_spec(args, job["source"] in MUSIC_SOURCES or job.get("as_audio", False))
-    if spec.startswith("bestaudio-"):
-        wanted = "m4a" if spec.endswith("m4a") else "webm"
-        audio = [f for f in video.formats if fmt.kind(f) == "audio" and fmt.ext(f) == wanted]
-        picked = fmt.select(audio or video.formats, "bestaudio")
-    else:
-        picked = fmt.select(video.formats, spec, args.max_height, args.codec)
+    picked = _pick_formats(video, job, args)
     if args.get_url:
         for f in picked:
             print(f["url"], flush=True)

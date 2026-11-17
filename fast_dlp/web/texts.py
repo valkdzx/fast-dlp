@@ -35,6 +35,13 @@ MESSAGES = {
     "busy": {"ru": "этот файл уже передаётся", "en": "this file is being sent already"},
     "bad_json": {"ru": "запрос не в JSON", "en": "the request is not JSON"},
     "network": {"ru": "сайт не ответил как надо: {error}", "en": "the site did not answer properly: {error}"},
+    "no_extra": {"ru": "у этого видео такого нет", "en": "this item has none"},
+    "subs_refused": {"ru": "YouTube не отдал субтитры (перевод бывает ограничен — попробуйте позже)",
+                     "en": "YouTube refused the subtitles (translations are rate-limited — try later)"},
+    "live_no_hls": {"ru": "у этого эфира нет HLS-плейлиста", "en": "this live stream offers no HLS playlist"},
+    "live_empty": {"ru": "эфир не отдал ни одного сегмента", "en": "the live stream produced no segments"},
+    "bad_format": {"ru": "формат: itag или itag+itag, например 401+140 или 251-drc",
+                   "en": "format: an itag or itag+itag, e.g. 401+140 or 251-drc"},
     "internal": {"ru": "ошибка на сервере: {error}", "en": "server error: {error}"},
 }
 

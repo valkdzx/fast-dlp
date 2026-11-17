@@ -162,6 +162,35 @@
   .entry .d { font-size: 12px; color: var(--muted); }
   .hint { font-size: 13px; color: var(--faint); text-align: center; margin-top: 10px; }
 
+  /* exact formats (-F / -f), SponsorBlock tags, side files, direct links */
+  .ftable { border: 1px solid var(--line); border-radius: 12px; margin-top: 12px; max-height: 320px; overflow-y: auto; background: var(--surface); }
+  .fhead { padding: 8px 12px; font-size: 12px; letter-spacing: .06em; text-transform: uppercase; color: var(--faint); position: sticky; top: 0; background: #0a0a0a; z-index: 1; }
+  .frow { display: grid; grid-template-columns: 18px 72px 1fr auto 78px; gap: 10px; align-items: center; padding: 8px 12px; border-top: 1px solid var(--line);
+          cursor: pointer; font-size: 13px; transition: background .2s, opacity .2s; }
+  .frow:hover { background: var(--surface-2); }
+  .frow.off { opacity: .3; cursor: not-allowed; }
+  .frow input { accent-color: #fff; margin: 0; }
+  .frow .id { font-family: ui-monospace, Consolas, monospace; }
+  .frow .m, .frow .z { color: var(--muted); }
+  .frow .z { text-align: right; }
+  .tags { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+  .tag { border: 1px solid var(--line); background: var(--surface); color: var(--muted); border-radius: 999px; padding: 6px 12px; font-size: 13px;
+         cursor: pointer; transition: background .25s, color .25s, border-color .25s, transform .18s var(--ease); }
+  .tag:hover { border-color: var(--line-strong); transform: translateY(-1px); }
+  .tag.on { background: #fff; color: #000; border-color: #fff; }
+  .tag:disabled { opacity: .35; cursor: default; transform: none; }
+  .xbtns { display: flex; flex-wrap: wrap; gap: 8px; }
+  select.field { padding: 10px 12px; flex: 1 1 150px; min-width: 0; color-scheme: dark; cursor: pointer; }
+  .seg.mini { flex: 0 0 auto; }
+  .seg.mini button { padding: 8px 12px; }
+  .links { display: flex; justify-content: center; margin-top: 10px; }
+  .urls { margin-top: 12px; display: grid; gap: 8px; animation: rise .4s var(--ease) both; }
+  .url { display: grid; grid-template-columns: 1fr auto; gap: 10px; align-items: center; border: 1px solid var(--line); border-radius: 12px;
+         padding: 10px 12px; background: var(--surface); }
+  .url b { display: block; font-size: 12px; font-weight: 600; margin-bottom: 2px; }
+  .url code { display: block; font-size: 12px; color: var(--muted); word-break: break-all; max-height: 3.1em; overflow: hidden; }
+  .job .actions { display: flex; gap: 8px; flex-wrap: wrap; }
+
   .summary { display: flex; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin: 24px 0 14px; }
   .summary .size { font-size: 26px; font-weight: 700; letter-spacing: -.02em; }
 
@@ -321,17 +350,46 @@
       </div></div>
     </div>
 
+    <div class="group rise" style="--i:4" id="g-live" hidden>
+      <div class="label"><b data-i18n="live"></b><span data-i18n="live_note"></span></div>
+      <div class="seg" data-key="liveh">
+        <button type="button" data-v="" data-i18n="best"></button>
+        <button type="button" data-v="1080">1080p</button>
+        <button type="button" data-v="720">720p</button>
+        <button type="button" data-v="480">480p</button>
+      </div>
+      <div class="row" style="margin-top:12px"><input class="field num" id="live-min" inputmode="numeric" data-i18n-ph="live_minutes_ph" data-i18n-aria="live_minutes"><span class="muted" data-i18n="minutes"></span></div>
+      <label class="switch" style="margin-top:6px"><span data-i18n="live_start"></span><input type="checkbox" id="live-start"></label>
+    </div>
+
+    <div class="group rise" style="--i:4" id="g-exact">
+      <label class="switch"><span><b data-i18n="exact"></b><br><span class="muted" style="font-size:13px" data-i18n="exact_note"></span></span><input type="checkbox" id="exact"></label>
+      <div class="collapse" id="exact-box"><div>
+        <div class="ftable" id="ex-video"></div>
+        <div class="ftable" id="ex-audio"></div>
+        <div class="muted num" style="font-size:13px;margin-top:8px" id="ex-note"></div>
+      </div></div>
+    </div>
+
+    <div class="group rise" style="--i:4" id="g-chapters">
+      <label class="switch"><span><b data-i18n="chapters"></b><br><span class="muted" style="font-size:13px" id="chap-note"></span></span><input type="checkbox" id="chap"></label>
+      <div class="muted" style="font-size:13px;margin-top:8px" data-i18n="sponsor"></div>
+      <div class="tags" id="sponsor"></div>
+    </div>
+
     <div class="group rise" style="--i:5" id="g-meta">
       <div class="label"><b data-i18n="metadata"></b></div>
       <label class="switch"><span><span data-i18n="tags_video"></span><span id="rg-note"></span></span><input type="checkbox" id="tags" checked></label>
       <label class="switch"><span data-i18n="cover"></span><input type="checkbox" id="cover"></label>
+      <label class="switch" id="lyrics-row"><span data-i18n="lyrics_embed"></span><input type="checkbox" id="lyrics"></label>
+      <label class="switch" id="rg-row"><span data-i18n="replaygain"></span><input type="checkbox" id="rg" checked></label>
     </div>
 
     <div class="group rise" style="--i:6">
       <div class="label"><b data-i18n="filename"></b></div>
       <div class="chips" id="templates"></div>
       <input class="field" id="template" style="width:100%;margin-top:8px;padding:10px 12px" spellcheck="false" data-i18n-aria="template">
-      <div class="preview"><span data-i18n="fields"></span> {title} {author} {id} {height} {fps} {ext}<br><span data-i18n="file"></span> <b id="fname"></b></div>
+      <div class="preview"><span data-i18n="fields"></span> {title} {author} {id} {height} {fps} {ext} {upload_date} {year} {duration} {resolution} {vcodec} {acodec} {view_count} {channel} {playlist_index}<br><span data-i18n="file"></span> <b id="fname"></b></div>
     </div>
 
     <div class="group rise" style="--i:7">
@@ -339,10 +397,27 @@
       <input type="range" id="conn" min="1" max="32" value="16">
     </div>
 
+    <div class="group rise" style="--i:7" id="g-extras">
+      <div class="label"><b data-i18n="extras"></b><span data-i18n="extras_note"></span></div>
+      <div class="xbtns" id="xbtns"></div>
+      <div id="subs-row">
+        <div class="label" style="margin:14px 0 8px"><span data-i18n="subtitles"></span></div>
+        <div class="row" style="flex-wrap:wrap">
+          <select class="field" id="sub-lang" data-i18n-aria="subtitles"></select>
+          <select class="field" id="sub-tr" data-i18n-aria="translate_to"></select>
+          <div class="seg mini" data-key="subfmt"><button type="button" data-v="srt">SRT</button><button type="button" data-v="vtt">VTT</button></div>
+          <button class="btn ghost sm" type="button" id="sub-go" data-i18n="sub_download"></button>
+        </div>
+      </div>
+      <div class="muted" id="subs-none" style="font-size:13px;margin-top:10px" data-i18n="subs_none"></div>
+    </div>
+
     <div class="summary rise" style="--i:8">
       <div><div class="size num" id="size">—</div><div class="muted" id="what"></div></div>
     </div>
     <button class="btn big rise" style="--i:9" id="go" type="button" data-i18n="download"></button>
+    <div class="links rise" style="--i:10"><button class="btn ghost sm" type="button" id="urls-btn" data-i18n="direct_links"></button></div>
+    <div class="urls" id="urls-box" hidden></div>
   </section>
 
   <section id="list" hidden>
@@ -393,6 +468,7 @@
       <div class="label"><b data-i18n="metadata"></b></div>
       <label class="switch"><span data-i18n="tags_music"></span><input type="checkbox" id="l-tags" checked></label>
       <label class="switch"><span data-i18n="cover"></span><input type="checkbox" id="l-cover" checked></label>
+      <label class="switch"><span data-i18n="lyrics_embed"></span><input type="checkbox" id="l-lyrics"></label>
     </div>
     <div class="group rise" style="--i:5">
       <div class="label"><b data-i18n="filename"></b></div>
@@ -454,6 +530,22 @@
       aborted: "Прервано", failed: "Ошибка", again: "Скачать снова", of: "{a} из {b}", in_s: "за {s} с",
       not_confirmed: "браузер не подтвердил получение", aborted_note: "браузер прервал загрузку; ссылку можно открыть снова",
       sites: { all: "все источники", web: "Файл", yandex: "Яндекс Музыка" },
+      exact: "Форматы вручную", exact_note: "как -F и -f: точные itag, DRC-копии, дубляж", no_video: "без видео", no_audio: "без звука",
+      ex_video: "Видео", ex_audio: "Звук", ex_pick: "-f {spec}", ex_mixed: "MP4 и WebM в один файл не собрать — недоступное приглушено",
+      ex_none: "выберите хотя бы одну дорожку", drc: "DRC",
+      chapters: "Главы внутри файла", chapters_note: "из плеера или таймкодов в описании", chapters_cut: "с отрывком главы не встраиваются",
+      sponsor: "SponsorBlock — отметить главами:",
+      sponsor_names: { sponsor: "Спонсор", intro: "Заставка", outro: "Концовка", selfpromo: "Самореклама", preview: "Анонс",
+                       filler: "Отступления", interaction: "Призывы подписаться", music_offtopic: "Не музыка" },
+      lyrics_embed: "Текст песни внутрь файла (LRCLIB)", replaygain: "ReplayGain",
+      extras: "Дополнительные файлы", extras_note: "каждый — отдельной загрузкой",
+      x_thumbnail: "Обложка", x_description: "Описание", x_chapters: "Главы (.txt)", x_info: "info.json", x_comments: "Комментарии",
+      x_lyrics: "Текст песни", subtitles: "Субтитры", subs_none: "Субтитров у этого видео нет.", translate_to: "Перевести на",
+      no_translate: "без перевода", auto_sub: "автоматические", sub_download: "Скачать",
+      direct_links: "Прямые ссылки (-g)", copy: "Копировать", copied: "Скопировано",
+      live: "Эфир", live_note: "пишется прямо к вам, пока не кончится или не остановите", live_minutes: "Сколько писать",
+      live_minutes_ph: "до конца эфира", minutes: "мин", live_start: "С начала (окно DVR)", live_rec: "запись эфира",
+      live_for: "запись {n} мин", stop_rec: "Остановить запись",
     },
     en: {
       lead: "YouTube up to 4K, Spotify, Yandex Music, VK, SoundCloud, TikTok, Pinterest, Pornhub, playlists, search and direct links — everything fast-dlp takes on the command line. The file is put together on the fly and streamed to you: nothing is stored on the server.",
@@ -481,6 +573,22 @@
       aborted: "Stopped", failed: "Error", again: "Download again", of: "{a} of {b}", in_s: "in {s}s",
       not_confirmed: "the browser did not confirm receipt", aborted_note: "the browser stopped the download; the link can be opened again",
       sites: { all: "all sources", web: "File", yandex: "Yandex Music" },
+      exact: "Formats by hand", exact_note: "like -F and -f: exact itags, DRC copies, dubbed tracks", no_video: "no video", no_audio: "no audio",
+      ex_video: "Video", ex_audio: "Audio", ex_pick: "-f {spec}", ex_mixed: "MP4 and WebM do not go into one file — the rest is dimmed",
+      ex_none: "pick at least one track", drc: "DRC",
+      chapters: "Chapters inside the file", chapters_note: "from the player or timestamps in the description", chapters_cut: "no chapters with a section",
+      sponsor: "SponsorBlock — mark as chapters:",
+      sponsor_names: { sponsor: "Sponsor", intro: "Intro", outro: "Outro", selfpromo: "Self-promotion", preview: "Preview",
+                       filler: "Filler", interaction: "Interaction reminder", music_offtopic: "Non-music" },
+      lyrics_embed: "Lyrics inside the file (LRCLIB)", replaygain: "ReplayGain",
+      extras: "Side files", extras_note: "each one a download of its own",
+      x_thumbnail: "Thumbnail", x_description: "Description", x_chapters: "Chapters (.txt)", x_info: "info.json", x_comments: "Comments",
+      x_lyrics: "Lyrics", subtitles: "Subtitles", subs_none: "This video has no subtitles.", translate_to: "Translate to",
+      no_translate: "no translation", auto_sub: "automatic", sub_download: "Download",
+      direct_links: "Direct links (-g)", copy: "Copy", copied: "Copied",
+      live: "Live stream", live_note: "recorded straight to you until it ends or you stop it", live_minutes: "How long to record",
+      live_minutes_ph: "until the stream ends", minutes: "min", live_start: "From the start (DVR window)", live_rec: "live recording",
+      live_for: "recording {n} min", stop_rec: "Stop recording",
     },
   };
   const SITE = { youtube: "YouTube", ytmusic: "YT Music", spotify: "Spotify", vk: "VK", soundcloud: "SoundCloud",
@@ -507,7 +615,7 @@
     LANG = b.dataset.lang;
     try { localStorage.setItem("fast-dlp-lang", LANG); } catch (e) { /* private mode: this visit only */ }
     applyLang();
-    if (S.info) { paintHead(); if (S.info.kind === "list") labelRows(); render(); }
+    if (S.info) { paintHead(); if (S.info.kind === "list") labelRows(); if (S.info.kind !== "list") buildSubs(); render(); }
     for (const j of jobs.values()) paintJob(j.data);
   }));
 
@@ -582,13 +690,28 @@
     if (!S.info) return;
     if (S.info.kind === "list") return renderList();
     if (S.info.kind === "file") return renderFile();
-    ["g-mode", "g-cut", "g-meta"].forEach((id) => { $(id).hidden = false; });
+    const live = !!S.info.live, ex = S.exactOn && !live;
+    ["g-mode", "g-cut", "g-meta", "g-extras"].forEach((id) => { $(id).hidden = false; });
     $("g-file").hidden = true;
-    const audio = S.mode === "audio";
-    $("g-container").hidden = audio;
-    $("g-quality").hidden = audio;
-    $("g-audio").hidden = !audio;
+    $("g-mode").hidden = ex;
+    $("g-live").hidden = !live; $("g-exact").hidden = live; $("g-chapters").hidden = live; $("g-cut").hidden = live || ex && false;
+    $("exact-box").classList.toggle("open", ex);
+    $("g-meta").hidden = live;                                      // a live recording is MPEG-TS: no tags
+    document.querySelector('[data-key="mode"] [data-v="video_only"]').disabled = live;
+    if (live && S.mode === "video_only") S.mode = "video";
+    const audio = ex ? !S.exV && !!S.exA : S.mode === "audio";
+    $("g-container").hidden = audio || ex || live;
+    $("g-quality").hidden = audio || ex || live;
+    $("g-audio").hidden = !audio || (ex && false);
     $("g-mp3").hidden = !(audio && S.audio_format === "mp3");
+    $("lyrics-row").hidden = !(audio || S.info.track);
+    $("rg-row").hidden = !audio;
+    if (ex) paintExact();
+    const cutOn = $("cut").checked && !live;
+    $("chap-note").textContent = cutOn ? T("chapters_cut") : T("chapters_note");
+    $("chap").disabled = cutOn;
+    paintSponsor(cutOn);
+    paintExtras();
     $("mp3-btn").disabled = !S.info.ffmpeg;
     $("mp3-btn").title = S.info.ffmpeg ? "" : T("no_ffmpeg");
     if (!S.info.ffmpeg && S.audio_format === "mp3") S.audio_format = "m4a";
@@ -621,14 +744,14 @@
     const v = pickVideo();
     const at = pool.filter((x) => !S.height || (x.height === S.height && (!S.fps || x.fps === S.fps)));
     const codecs = new Set(at.map((x) => x.codec));
-    $("g-codec").hidden = audio || S.container !== "mp4" || codecs.size < 2;
+    $("g-codec").hidden = audio || ex || live || S.container !== "mp4" || codecs.size < 2;
     document.querySelectorAll('[data-key="codec"] button').forEach((b) => { b.disabled = b.dataset.v && !codecs.has(b.dataset.v); });
     if (S.codec && !codecs.has(S.codec)) S.codec = "";
     $("codec-note").textContent = v && !S.codec ? T("now", { x: codecName[v.codec] || v.codec }) : "";
     $("container-note").textContent = S.container === "mp4" ? "H.264 / AV1 + AAC" : "VP9 + Opus";
     $("audio-note").textContent = T({ m4a: "aac_note", opus: "opus_note", mp3: "mp3_note" }[S.audio_format]);
     $("quality-note").textContent = v ? `${v.width}×${v.height}` : "";
-    $("rg-note").textContent = audio ? ", ReplayGain" : "";
+    $("rg-note").textContent = "";
 
     document.querySelectorAll(".seg").forEach(paintSeg);
 
@@ -644,7 +767,15 @@
     }
 
     // summary
-    const parts = chosen();
+    const parts = ex ? exactParts() : chosen();
+    if (live) {
+      const mins = parseFloat($("live-min").value) || 0;
+      $("size").textContent = "—";
+      $("what").textContent = [mins ? T("live_for", { n: mins }) : T("live_rec"), S.mode === "audio" ? T("audio_only") : S.liveh ? S.liveh + "p" : T("best")].join(" · ");
+      $("go").disabled = false;
+      $("fname").textContent = `${fill($("template").value || "{title}", { title: S.info.title, author: S.info.author, id: S.info.id })} [live].${S.mode === "audio" ? "m4a" : "ts"}`;
+      return;
+    }
     let total = parts.reduce((a, f) => a + f.size, 0);
     if (S.mode === "audio" && S.audio_format === "mp3") {
       const kbps = { "320k": 320, "256k": 256, "192k": 192, "128k": 128, V0: 245, V2: 190 }[S.mp3_quality];
@@ -654,15 +785,21 @@
     const exact = !(S.mode === "audio" && S.audio_format === "mp3") && !(sec && !sec.bad);
     $("size").textContent = parts.length ? (exact ? "" : "≈ ") + size(total) : "—";
     const desc = parts.map((f) => f.height ? `${f.height}p${f.fps > 30 ? f.fps : ""} ${codecName[f.codec] || f.codec}` : `${codecName[f.codec] || f.codec} ${Math.round(f.bitrate / 1000)}k`);
-    const ext = S.mode === "audio" ? { m4a: "M4A", opus: "Opus (WebM)", mp3: "MP3 " + S.mp3_quality.replace("k", "") }[S.audio_format] : S.container.toUpperCase();
+    const exCont = ex && parts.length ? parts[0].container : null;
+    const ext = audio && S.audio_format === "mp3" ? "MP3 " + S.mp3_quality.replace("k", "")
+      : ex ? (audio ? (exCont === "webm" ? "Opus (WebM)" : "M4A") : (exCont || "").toUpperCase())
+      : S.mode === "audio" ? { m4a: "M4A", opus: "Opus (WebM)", mp3: "MP3 " + S.mp3_quality.replace("k", "") }[S.audio_format] : S.container.toUpperCase();
     $("what").textContent = [ext, desc.join(" + ")].filter(Boolean).join(" · ");
     $("go").disabled = !parts.length || (sec && sec.bad);
 
     // filename preview
     const top = parts.find((f) => f.height);
     const fields = { title: S.info.title, author: S.info.author, uploader: S.info.author, id: S.info.id,
-                     height: top ? top.height : "audio", fps: top ? top.fps : "",
-                     ext: S.mode === "audio" ? { m4a: "m4a", opus: "webm", mp3: "mp3" }[S.audio_format] : S.container };
+                     height: top ? top.height : "audio", fps: top ? top.fps : "", channel: S.info.author, artist: S.info.author,
+                     duration: S.info.duration || 0, view_count: S.info.views || "", resolution: top ? `${top.height}p` : "audio only",
+                     upload_date: "…", year: "…", date: "…", site: S.info.site || "youtube",
+                     ext: audio ? (S.audio_format === "mp3" ? "mp3" : ex ? (exCont === "webm" ? "webm" : "m4a") : { m4a: "m4a", opus: "webm" }[S.audio_format])
+                        : ex ? exCont : S.container };
     S.template = $("template").value || "{title}";
     const name = S.template.replace(/\{(\w+)\}/g, (m, k) => (k in fields ? fields[k] : "NA")).replace(/[\\/:*?"<>|]/g, "_").trim();
     $("fname").textContent = `${name || "video"}.${fields.ext}`;
@@ -674,8 +811,10 @@
 
   function renderFile() {
     const d = S.info, mp3 = S.fmode === "mp3";
-    ["g-mode", "g-container", "g-audio", "g-quality", "g-codec", "g-cut"].forEach((id) => { $(id).hidden = true; });
-    $("g-file").hidden = false;
+    ["g-mode", "g-container", "g-audio", "g-quality", "g-codec", "g-cut", "g-live", "g-exact", "g-chapters"].forEach((id) => { $(id).hidden = true; });
+    $("g-file").hidden = false; $("g-extras").hidden = false;
+    $("lyrics-row").hidden = !(d.audio || mp3); $("rg-row").hidden = true;
+    paintExtras();
     $("g-mp3").hidden = !mp3;
     $("g-meta").hidden = !mp3;
     $("fmp3-btn").disabled = !d.ffmpeg;
@@ -722,6 +861,7 @@
     const music = d.entries.filter((e) => e.audio).length > d.entries.length / 2;
     S.lmode = music ? "audio" : "video";
     $("l-cover").checked = music;
+    $("l-lyrics").checked = music;
     $("l-template").value = music ? "{author} - {title}" : "{title}";
     paintHead();
     $("entries").replaceChildren(...d.entries.map((e, i) => {
@@ -762,7 +902,10 @@
   $("l-inv").onclick = () => { S.sel = new Set(S.info.entries.map((e) => e.n).filter((n) => !S.sel.has(n))); render(); };
 
   // -- search ----------------------------------------------------------------------------------
-  function showError(msg) { const e = $("error"); e.hidden = !msg; e.textContent = msg || ""; if (msg) { e.style.animation = "none"; e.offsetHeight; e.style.animation = ""; } }
+  function showError(msg) {
+    const e = $("error"); e.hidden = !msg; e.textContent = msg || "";
+    if (msg) { e.style.animation = "none"; e.offsetHeight; e.style.animation = ""; e.scrollIntoView({ behavior: "smooth", block: "center" }); }
+  }
 
   async function find(url) {
     url = url.trim(); if (!url) return;
@@ -782,6 +925,7 @@
       }
       if (data.kind === "file") { S.fmode = "original"; $("cover").checked = false; }
       if (data.track) { S.mode = "audio"; $("cover").checked = true; }
+      setupItem(data);
       const img = $("thumb"); img.classList.remove("ok"); img.onload = () => img.classList.add("ok");
       $("thumb-box").hidden = !data.thumbnail;
       if (data.thumbnail) img.src = data.thumbnail; else img.removeAttribute("src");
@@ -812,16 +956,177 @@
   $("cut").addEventListener("change", render);
   $("conn").addEventListener("input", () => { S.connections = +$("conn").value; $("conn-v").textContent = S.connections; });
 
+
+  // -- formats by hand (-F / -f), chapters, side files, direct links ---------------------------
+  const rowsOf = (kind) => (S.info.formats || []).filter((r) => r.kind === kind);
+  const findRow = (id) => (S.info.formats || []).find((r) => r.id === id);
+  function exactRow(r, group) {
+    const row = document.createElement("label"); row.className = "frow"; row.dataset.id = r ? r.id : "";
+    const radio = document.createElement("input"); radio.type = "radio"; radio.name = group; radio.value = r ? r.id : "";
+    radio.onchange = () => {
+      S[group] = radio.value;
+      // keep the pair in one container: swap the other side for its best match
+      const mine = findRow(radio.value), otherKey = group === "exV" ? "exA" : "exV", other = findRow(S[otherKey]);
+      if (mine && other && other.container !== mine.container) {
+        const best = rowsOf(other.kind).find((x) => x.container === mine.container && !x.drc && !x.lang);
+        S[otherKey] = best ? best.id : "";
+      }
+      render();
+    };
+    const id = document.createElement("span"); id.className = "id"; id.textContent = r ? r.id : "—";
+    const what = document.createElement("span");
+    const m = document.createElement("span"); m.className = "m";
+    const z = document.createElement("span"); z.className = "z num";
+    if (!r) { what.textContent = T(group === "exV" ? "no_video" : "no_audio"); }
+    else if (r.kind === "video") { what.textContent = `${r.quality} · ${r.codec}`; m.textContent = `${r.ext} · ${kbit(r.bitrate)}`; z.textContent = size(r.size); }
+    else {
+      what.textContent = [r.codec, r.lang, r.drc ? T("drc") : "", r.channels > 2 ? (r.channels === 6 ? "5.1" : r.channels + "ch") : ""].filter(Boolean).join(" · ");
+      m.textContent = `${r.ext} · ${kbit(r.bitrate)}`; z.textContent = size(r.size);
+    }
+    row.append(radio, id, what, m, z); return row;
+  }
+  const kbit = (b) => b >= 1e6 ? (b / 1e6).toFixed(1) + (LANG === "ru" ? " Мбит/с" : " Mbit/s") : Math.round(b / 1000) + (LANG === "ru" ? " кбит/с" : " kbit/s");
+  function buildExact() {
+    for (const [box, kind, group, head] of [["ex-video", "video", "exV", "ex_video"], ["ex-audio", "audio", "exA", "ex_audio"]]) {
+      const h = document.createElement("div"); h.className = "fhead"; h.dataset.i18n = head; h.textContent = T(head);
+      $(box).replaceChildren(h, exactRow(null, group), ...rowsOf(kind).map((r) => exactRow(r, group)));
+    }
+  }
+  function exactDefaults() {
+    const v = rowsOf("video")[0];
+    const a = rowsOf("audio").filter((r) => !r.drc && !r.lang && (!v || r.container === v.container))[0];
+    S.exV = S.mode === "audio" ? "" : v ? v.id : ""; S.exA = S.mode === "video_only" ? "" : a ? a.id : "";
+  }
+  function paintExact() {
+    const v = findRow(S.exV), a = findRow(S.exA);
+    document.querySelectorAll(".frow").forEach((row) => {
+      const r = findRow(row.dataset.id);
+      const other = r && (r.kind === "video" ? a : v);
+      const off = !!(r && other && other.container !== r.container);
+      row.classList.toggle("off", off);
+      const radio = row.querySelector("input"); radio.disabled = off;
+      radio.checked = (radio.name === "exV" ? S.exV : S.exA) === row.dataset.id;
+    });
+    const spec = [S.exV, S.exA].filter(Boolean).join("+");
+    $("ex-note").textContent = spec ? T("ex_pick", { spec }) + " · " + T("ex_mixed") : T("ex_none");
+  }
+  function exactParts() {
+    return [S.exV, S.exA].map(findRow).filter(Boolean).map((r) => ({
+      size: r.size, height: r.height, fps: +((r.quality.match(/p(\d+)/) || [])[1] || 0), codec: r.codec, bitrate: r.bitrate,
+      container: r.container, kind: r.kind }));
+  }
+  function buildSponsor() {
+    $("sponsor").replaceChildren(...(S.info.sponsor || []).map((c) => {
+      const b = document.createElement("button"); b.type = "button"; b.className = "tag"; b.dataset.c = c;
+      b.onclick = () => { if (S.sponsor.has(c)) S.sponsor.delete(c); else S.sponsor.add(c); render(); };
+      return b;
+    }));
+  }
+  function paintSponsor(off) {
+    document.querySelectorAll("#sponsor .tag").forEach((b) => {
+      b.textContent = L[LANG].sponsor_names[b.dataset.c] || b.dataset.c;
+      b.classList.toggle("on", S.sponsor.has(b.dataset.c)); b.disabled = off;
+    });
+  }
+  function buildSubs() {
+    const caps = S.info.captions || [], tr = S.info.translations || [];
+    $("subs-row").hidden = !caps.length; $("subs-none").hidden = !!caps.length || S.info.kind !== "video";
+    const opt = (v, t) => { const o = document.createElement("option"); o.value = v; o.textContent = t; return o; };
+    $("sub-lang").replaceChildren(...caps.map((c) => opt(`${c.lang}|${c.auto ? 1 : 0}`, `${c.name || c.lang}${c.auto ? " · " + T("auto_sub") : ""}`)));
+    $("sub-tr").replaceChildren(opt("", T("no_translate")), ...tr.map((l) => opt(l, l)));
+    $("sub-tr").hidden = !tr.length;
+  }
+  function extraKinds() {
+    const d = S.info;
+    if (d.kind === "file") return [d.thumbnail && "thumbnail", "info", d.audio && "lyrics"].filter(Boolean);
+    return ["thumbnail", d.description && "description", "chapters", "info", "comments",
+            (S.mode === "audio" || d.track) && "lyrics"].filter(Boolean);
+  }
+  function paintExtras() {
+    const kinds = extraKinds();
+    const box = $("xbtns");
+    if (box.dataset.kinds !== kinds.join()) {
+      box.dataset.kinds = kinds.join();
+      box.replaceChildren(...kinds.map((k) => {
+        const b = document.createElement("button"); b.type = "button"; b.className = "btn ghost sm"; b.dataset.x = k;
+        b.onclick = () => getExtra({ kind: k, sponsor: [...S.sponsor].join(",") }, b);
+        return b;
+      }));
+    }
+    box.querySelectorAll("button").forEach((b) => { b.textContent = T("x_" + b.dataset.x); });
+  }
+  const subFmt = () => S.subfmt || "srt";
+  $("sub-go").onclick = () => {
+    const [lang, auto] = ($("sub-lang").value || "|0").split("|");
+    getExtra({ kind: "subtitles", lang, auto, tlang: $("sub-tr").value, format: subFmt() }, $("sub-go"));
+  };
+  async function getExtra(params, btn) {
+    btn.disabled = true; showError("");
+    try {
+      const qs = new URLSearchParams(Object.assign({ url: S.url }, params));
+      const r = await fetch("/api/extra?" + qs, { headers: { "X-Lang": LANG } });
+      if (!r.ok) throw new Error((await r.json().catch(() => ({}))).error || r.statusText);
+      const cd = r.headers.get("Content-Disposition") || "";
+      const m = cd.match(/filename\*=UTF-8''([^;]+)/);
+      const name = m ? decodeURIComponent(m[1]) : "file";
+      const url = URL.createObjectURL(await r.blob());
+      const a = document.createElement("a"); a.href = url; a.download = name; document.body.append(a); a.click(); a.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 30000);
+    } catch (e) { showError(e.message); }
+    finally { btn.disabled = false; }
+  }
+  $("urls-btn").onclick = async () => {
+    const btn = $("urls-btn"); btn.disabled = true; showError("");
+    try {
+      const r = await fetch("/api/urls", { method: "POST", headers: { "Content-Type": "application/json", "X-Lang": LANG }, body: JSON.stringify(buildBody()) });
+      const data = await r.json();
+      if (!r.ok) throw new Error(data.error || r.statusText);
+      $("urls-box").replaceChildren(...data.urls.map((u) => {
+        const row = document.createElement("div"); row.className = "url";
+        const text = document.createElement("div");
+        const b = document.createElement("b"); b.textContent = u.label;
+        const c = document.createElement("code"); c.textContent = u.url;
+        text.append(b, c);
+        const copy = document.createElement("button"); copy.type = "button"; copy.className = "btn ghost sm"; copy.textContent = T("copy");
+        copy.onclick = async () => { try { await navigator.clipboard.writeText(u.url); copy.textContent = T("copied"); setTimeout(() => { copy.textContent = T("copy"); }, 1500); } catch (e) { showError(e.message); } };
+        row.append(text, copy); return row;
+      }));
+      $("urls-box").hidden = false;
+    } catch (e) { showError(e.message); }
+    finally { btn.disabled = false; }
+  };
+  function setupItem(d) {
+    S.sponsor = new Set(); S.exactOn = false; $("exact").checked = false; S.exV = ""; S.exA = ""; S.liveh = ""; S.subfmt = "srt";
+    $("chap").checked = false; $("rg").checked = true; $("lyrics").checked = !!(d.track || d.audio);
+    $("live-min").value = ""; $("live-start").checked = false; $("urls-box").hidden = true;
+    $("xbtns").dataset.kinds = "";
+    if (d.kind === "video") { buildExact(); buildSponsor(); }
+    buildSubs();
+  }
+  $("exact").addEventListener("change", () => { S.exactOn = $("exact").checked; if (S.exactOn && !S.exV && !S.exA) exactDefaults(); render(); });
+  ["chap", "lyrics", "rg", "live-start"].forEach((id) => $(id).addEventListener("change", render));
+  $("live-min").addEventListener("input", render);
+
   // -- download --------------------------------------------------------------------------------
 
-  $("go").addEventListener("click", async () => {
+  function buildBody() {
     const file = S.info.kind === "file";
-    const sec = file ? null : section();
+    const sec = file || S.info.live ? null : section();
     const body = { url: S.url, mode: S.mode, container: S.container, audio_format: S.audio_format, codec: S.codec,
                    height: S.height, fps: S.fps, mp3_quality: S.mp3_quality, connections: S.connections,
                    tags: $("tags").checked, cover: $("cover").checked, template: S.template,
-                   start: sec ? $("start").value : "", end: sec ? $("end").value : "" };
+                   start: sec ? $("start").value : "", end: sec ? $("end").value : "",
+                   lyrics: $("lyrics").checked, replaygain: $("rg").checked,
+                   chapters: $("chap").checked, sponsor: [...S.sponsor].join(",") };
     if (file) Object.assign(body, S.fmode === "mp3" ? { mode: "audio", audio_format: "mp3" } : { mode: "original" });
+    if (S.info.kind === "video" && S.exactOn && !S.info.live) body.format = [S.exV, S.exA].filter(Boolean).join("+");
+    if (S.info.live) Object.assign(body, { height: S.liveh ? +S.liveh : null, live_duration: Math.round((parseFloat($("live-min").value) || 0) * 60),
+                                           live_from_start: $("live-start").checked, start: "", end: "" });
+    return body;
+  }
+
+  $("go").addEventListener("click", async () => {
+    const body = buildBody();
     $("go").disabled = true; $("go").textContent = T("preparing"); showError("");
     document.body.classList.add("busy");
     try {
@@ -841,7 +1146,8 @@
   $("l-go").addEventListener("click", () => {
     const base = { url: S.url, mode: S.lmode, container: "mp4", audio_format: S.audio_format, codec: "",
                    height: S.lheight ? +S.lheight : null, fps: null, mp3_quality: S.mp3_quality, connections: S.connections,
-                   tags: $("l-tags").checked, cover: $("l-cover").checked, template: $("l-template").value || "{title}" };
+                   tags: $("l-tags").checked, cover: $("l-cover").checked, template: $("l-template").value || "{title}",
+                   lyrics: $("l-lyrics").checked };
     for (const e of S.info.entries) {
       if (!S.sel.has(e.n)) continue;
       const body = Object.assign({}, base, { entry: e.n });
@@ -883,9 +1189,13 @@
     const el = document.createElement("div"); el.className = "job";
     el.innerHTML = `<div class="top"><div class="name"></div><span class="state"></span></div>
       <div class="bar"><i></i></div><div class="meta num"><span class="l"></span><span class="r"></span></div>
-      <div class="actions" hidden><button class="btn ghost" type="button"></button></div>`;
+      <div class="actions" hidden><button class="btn ghost again" type="button"></button><button class="btn ghost stop" type="button"></button></div>`;
     el.querySelector(".name").textContent = job.filename;
-    el.querySelector(".actions button").onclick = () => start(jobs.get(job.token).data);
+    el.querySelector(".again").onclick = () => start(jobs.get(job.token).data);
+    el.querySelector(".stop").onclick = async (ev) => {
+      ev.currentTarget.disabled = true;
+      try { const r = await fetch(`/api/jobs/${job.token}/stop`, { method: "POST", headers: { "X-Lang": LANG } }); if (r.ok) paintJob(await r.json()); } catch (e) { showError(e.message); }
+    };
     $("jobs").prepend(el); $("downloads").hidden = false;
     jobs.set(job.token, { el, data: job });
     paintJob(job);
@@ -912,8 +1222,12 @@
     else if (d.state === "aborted") r.textContent = T("aborted_note");
     else if (d.error) r.textContent = d.error;
     else r.textContent = "";
-    el.querySelector(".actions").hidden = !d.download || !(["aborted", "failed"].includes(d.state) || stale);
-    el.querySelector(".actions button").textContent = d.state === "ready" ? T("download") : T("again");
+    const again = !!d.download && (["aborted", "failed"].includes(d.state) || stale);
+    const stop = !!d.live && ["ready", "streaming"].includes(d.state) && !d.stopping;
+    el.querySelector(".again").hidden = !again; el.querySelector(".stop").hidden = !stop;
+    el.querySelector(".actions").hidden = !again && !stop;
+    el.querySelector(".again").textContent = d.state === "ready" ? T("download") : T("again");
+    el.querySelector(".stop").textContent = T("stop_rec");
   }
 
   const FINAL = ["delivered", "unconfirmed", "failed", "aborted"];

@@ -152,20 +152,7 @@ def write_side_files(base, video, args, watch, subs, picked, chapters_list):
             json.dump(comments, fh, ensure_ascii=False, indent=1)
         written.append(path)
     if args.write_info_json:
-        info = {
-            "id": video.id, "title": video.title, "uploader": video.author,
-            "channel_id": details.get("channelId"), "duration": int(details.get("lengthSeconds") or 0),
-            "view_count": int(details.get("viewCount") or 0), "upload_date": watch.upload_date(),
-            "description": details.get("shortDescription"), "tags": details.get("keywords") or [],
-            "is_live": bool(details.get("isLive")), "webpage_url": f"https://www.youtube.com/watch?v={video.id}",
-            "thumbnails": (details.get("thumbnail") or {}).get("thumbnails") or [],
-            "chapters": [{"start_time": s, "title": t} for s, t in chapters_list],
-            "subtitles": [{"lang": l, "name": n, "cues": len(c)} for l, n, c in subs],
-            "formats": [{"itag": f["itag"], "ext": fmt.ext(f), "codec": fmt.codec(f), "height": f.get("height"),
-                         "fps": f.get("fps"), "bitrate": f.get("bitrate"), "filesize": fmt.size(f) or None}
-                        for f in video.formats],
-            "requested_formats": [f["itag"] for f in picked], "extractor_client": video.client,
-        }
+        info = info_dict(video, watch, subs, picked, chapters_list)
         if comments is not None:
             info["comment_count_fetched"] = len(comments)
         path = base + ".info.json"
@@ -174,6 +161,25 @@ def write_side_files(base, video, args, watch, subs, picked, chapters_list):
         written.append(path)
     for p in written:
         print(f"[side] {os.path.basename(p)}", file=sys.stderr)
+
+
+def info_dict(video, watch, subs, picked, chapters_list):
+    """What --write-info-json writes (the web page serves the same)."""
+    details = video.raw.get("videoDetails") or {}
+    return {
+        "id": video.id, "title": video.title, "uploader": video.author,
+        "channel_id": details.get("channelId"), "duration": int(details.get("lengthSeconds") or 0),
+        "view_count": int(details.get("viewCount") or 0), "upload_date": watch.upload_date(),
+        "description": details.get("shortDescription"), "tags": details.get("keywords") or [],
+        "is_live": bool(details.get("isLive")), "webpage_url": f"https://www.youtube.com/watch?v={video.id}",
+        "thumbnails": (details.get("thumbnail") or {}).get("thumbnails") or [],
+        "chapters": [{"start_time": s, "title": t} for s, t in chapters_list],
+        "subtitles": [{"lang": l, "name": n, "cues": len(c)} for l, n, c in subs],
+        "formats": [{"itag": f["itag"], "format_id": fmt.format_id(f), "ext": fmt.ext(f), "codec": fmt.codec(f),
+                     "height": f.get("height"), "fps": f.get("fps"), "bitrate": f.get("bitrate"),
+                     "filesize": fmt.size(f) or None} for f in video.formats],
+        "requested_formats": [f["itag"] for f in picked], "extractor_client": video.client,
+    }
 
 
 # -- download archive ------------------------------------------------------------------------

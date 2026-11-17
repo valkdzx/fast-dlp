@@ -227,22 +227,25 @@ def _hls_media(media_url, headers, audio_only, connections):
     return ext, chunks
 
 
-def _ffmpeg_join(ffmpeg, video_url, audio_url, headers):
-    """HLS with audio apart: ffmpeg joins both playlists into fragmented MP4 on stdout."""
+def _ffmpeg_join(ffmpeg, video_url, audio_url, headers, extra=(), stop=None, live=False):
+    """HLS with audio apart: ffmpeg joins both playlists on stdout - fragmented MP4, or
+    MPEG-TS for a live stream (its timestamps jump; TS takes that, fragmented MP4 does not)."""
+    container = ["-f", "mpegts"] if live else ["-f", "mp4", "-movflags", "frag_keyframe+empty_moov+default_base_moof"]
     hdr = "".join(f"{k}: {v}\r\n" for k, v in headers.items())
     cmd = [ffmpeg, "-loglevel", "error", "-nostdin", "-headers", hdr, "-i", video_url, "-headers", hdr,
-           "-i", audio_url, "-map", "0:v:0", "-map", "1:a:0", "-c", "copy", "-f", "mp4",
-           "-movflags", "frag_keyframe+empty_moov+default_base_moof", "pipe:1"]
+           "-i", audio_url, "-map", "0:v:0", "-map", "1:a:0", "-c", "copy", *extra, *container, "pipe:1"]
 
     def chunks():
         proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, stdin=subprocess.DEVNULL)
         try:
             while True:
+                if stop and stop():
+                    return
                 block = proc.stdout.read(256 * 1024)
                 if not block:
                     break
                 yield block
-            if proc.wait() != 0:
+            if proc.wait() != 0 and not (stop and stop()):
                 raise FastDlpError(f"ffmpeg: {proc.stderr.read().decode(errors='replace')[-300:]}")
         finally:
             if proc.poll() is None:
@@ -295,3 +298,91 @@ def direct_output(job, spec, opts, meta, ffmpeg):
         out = Piped(ext, source, size or None, conns)
     out.mime = mime(ext)
     return out
+
+
+# -- live streams -------------------------------------------------------------------------------
+
+LIVE_EDGE = 3                  # segments back from the live edge to start at
+
+
+def live_output(video, opts, ffmpeg, stop):
+    """A YouTube live stream recorded straight into the response: from the live edge (or
+    the start of the DVR window) until it ends, opts["live_duration"] seconds pass, or
+    stop() says so (the page's Stop button). Same as `fast-dlp LIVE_URL` without the file."""
+    url = (video.raw.get("streamingData") or {}).get("hlsManifestUrl")
+    if not url:
+        raise WebError("live_no_hls")
+    headers = {"User-Agent": stream.user_agent(video)}
+    audio_only = opts["mode"] == "audio"
+    playlists = hls.choose(url, headers, audio_only, opts.get("height"))
+    duration = opts.get("live_duration")
+    if len(playlists) == 2:
+        if not ffmpeg:
+            raise WebError("join_ffmpeg")
+        cmd_extra = ["-t", str(duration)] if duration else []
+        source = _ffmpeg_join(ffmpeg, playlists[0], playlists[1], headers, cmd_extra, stop, live=True)
+        ext = "ts"
+    else:
+        ext, source = _live_media(playlists[0], headers, duration, opts.get("live_from_start"), stop,
+                                  audio_only, opts["connections"])
+    if audio_only and opts["audio_format"] == "mp3":
+        if not ffmpeg:
+            raise WebError("mp3_ffmpeg")
+        return Piped("mp3", source, None, opts["connections"], stream.mp3_command(ffmpeg, opts["mp3_quality"]))
+    out = Piped(ext, source, None, opts["connections"])
+    out.mime = mime(ext)
+    return out
+
+
+def _live_media(media_url, headers, duration, from_start, stop, audio_only, connections):
+    import time
+    text = hls._get(media_url, headers)
+    _, segments, init = hls.parse(text, media_url)
+    if not segments:
+        raise WebError("live_empty")
+    start = 0 if from_start else max(0, len(segments) - LIVE_EDGE)
+    first_seg = segments[start]
+    status, first = net.request(first_seg["uri"], headers=headers, timeout=30)
+    if status != 200:
+        raise WebError("live_empty")
+    init_bytes = hls._get(init, headers, binary=True) if init else b""
+    fmp4 = bool(init_bytes) or first[4:8] in (b"ftyp", b"styp", b"moof")
+    ext = ("m4a" if audio_only else "mp4") if fmp4 else "ts"
+
+    def fetch(seg):
+        for attempt in range(3):
+            st, body = net.request(seg["uri"], headers=headers, timeout=30)
+            if st == 200:
+                return body
+            time.sleep(0.5 * (attempt + 1))
+        return b""                                   # a lost live segment is skipped, not fatal
+
+    def chunks():
+        t0 = time.time()
+        if init_bytes:
+            yield init_bytes
+        yield first
+        last = first_seg["seq"]
+        backlog = [s for s in segments if s["seq"] > last]
+        while True:
+            for data in _ordered(backlog, fetch, max(1, min(4, connections))):
+                if data:
+                    yield data
+                if stop() or (duration and time.time() - t0 >= duration):
+                    return
+            if backlog:
+                last = backlog[-1]["seq"]
+            if "#EXT-X-ENDLIST" in text_box[0] or stop() or (duration and time.time() - t0 >= duration):
+                return
+            wait = max(1.0, (backlog or segments)[-1].get("duration") or 5.0)
+            deadline = time.time() + wait
+            while time.time() < deadline:
+                if stop():
+                    return
+                time.sleep(0.25)
+            text_box[0] = hls._get(media_url, headers)
+            _, fresh, _ = hls.parse(text_box[0], media_url)
+            backlog = [s for s in fresh if s["seq"] > last]
+
+    text_box = [text]
+    return ext, chunks

@@ -105,16 +105,27 @@ direct file is fetched in parallel ranges, HLS segment by segment, in order. Wit
 the server any of them can be turned into MP3 on the way. Steam Workshop goes through
 steamcmd, so it is command line only.
 
-Options for YouTube:
+Options for YouTube — what the command line does, on the page:
 
-- what to get: video with audio, audio only or video only;
-- format: MP4 (H.264 / AV1 + AAC) or WebM (VP9 + Opus); for audio M4A, Opus or MP3;
-- quality from 144p to 4K, with the size of each variant;
-- codec and MP3 bitrate;
-- a time section;
-- tags, cover art, ReplayGain;
-- a file name template;
-- the number of connections.
+| Command line | On the page |
+|---|---|
+| `-x`, `-q`, `--codec`, `--audio-format`, `--audio-quality` | what to get, container, quality chips with sizes, codec, MP3 bitrate |
+| `-F` / `-f` | "Formats by hand": the full table with `-f` ids, DRC copies and dubbed tracks; MP4 and WebM are never mixed |
+| `--section` | a time section (cut at keyframes, no ffmpeg) |
+| `--embed-chapters`, `--sponsorblock-mark` | chapters inside the streamed MP4 / WebM, SponsorBlock categories as chapters |
+| tags, cover, `--lyrics`, ReplayGain | written into the streamed file |
+| `--write-subs` / `--write-auto-subs` / `--sub-langs` | subtitles as a separate `.srt` / `.vtt`, any track, machine translation into any language |
+| `--write-thumbnail`, `--write-description`, `--write-info-json`, `--write-comments`, `--write-lyrics` | "Side files": each a download of its own |
+| `-g` | "Direct links": the stream URLs with a copy button |
+| `-o` | a file name template with the same fields (`{upload_date}`, `{resolution}`, `{vcodec}`...) |
+| live streams, `--live-duration`, `--live-from-start` | recorded straight into the response, quality, a time limit, from the DVR start; a Stop button |
+| `-N` | the number of connections |
+| playlists, albums, search, `-I` | lists with checkboxes, three files at a time |
+
+What stays on the command line: `sync` and `--download-archive` (they need a folder on
+disk), Steam Workshop (steamcmd), sign-ins (`login`, `yandex-login`, `vk-setup` — the server
+uses the tokens of the account it runs under), and embedded subtitles (a subtitle track
+needs fragments of its own, so on the page subtitles are files beside the video).
 
 **Nothing is stored on the server.** The file is streamed (HTTP streaming):
 
@@ -146,10 +157,29 @@ A download link is one-time and lives an hour. The page follows the status throu
 | `POST /api/jobs` | options (+ `entry` for a list item) → token, file name, exact size |
 | `GET /dl/<token>` | the file itself, streamed |
 | `GET /api/status?t=a,b` | download states: bytes sent, speed, status |
+| `POST /api/urls` | the same options → stream URLs (`-g`) |
+| `GET /api/extra?url=&kind=` | a side file: `thumbnail`, `description`, `chapters`, `info`, `comments`, `subtitles` (`lang`, `auto`, `tlang`, `format`), `lyrics` |
+| `POST /api/jobs/<token>/stop` | stop a live recording |
 
 Send `X-Lang: en` or `X-Lang: ru` to choose the language of error messages.
 
 Measured: a 232 MiB 4K video reaches the browser in 3.8 s (~60 MiB/s).
+
+## Formats: `-F` and `-f`
+
+```
+fast-dlp -F https://youtu.be/VIDEO_ID     # also --list-formats, --listformats, -listformats
+```
+
+The list shows video and audio apart, best first: quality (`2160p60 HDR`), pixels, codec
+(AV1 / VP9 / H.264, AAC-LC / HE-AAC / Opus), bitrate and exact size. Audio rows also note
+the language of dubbed tracks, the DRC copy (compressed loudness), 5.1 and the sample rate.
+A `*` marks what downloads right now — `-q`, `--codec`, `-x` and `--audio-format` are taken
+into account — and the line below gives the matching `-f`.
+
+The first column is exactly what `-f` takes: `-f 401+140`, `-f 251`, `-f 140-drc` for the DRC
+copy, `-f 251-de` for a dubbed track. A bare itag always means the original, non-DRC copy.
+For other sites `-F` shows the single file (type, size, host) or the HLS variants.
 
 ## Stream URLs for developers: `--get-url`
 

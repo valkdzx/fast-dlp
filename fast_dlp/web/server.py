@@ -23,9 +23,9 @@ import types
 import urllib.parse
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
-from .. import formats as fmt, lyrics, net, search, section, stream, utils
+from .. import formats as fmt, lyrics, net, postprocess, search, section, stream, utils, ytmeta
 from ..utils import FastDlpError
-from . import targets, texts
+from . import extras, targets, texts
 from .texts import WebError
 
 STATIC = os.path.join(os.path.dirname(os.path.abspath(__file__)), "static")
@@ -35,6 +35,8 @@ CONFIRM_TIMEOUT = 60         # seconds to wait for the browser's FIN after the l
 
 TEMPLATES = ("{title}", "{author} - {title}", "{title} [{id}]", "{title} ({height}p)")
 LIST_LIMIT = 500             # rows of a list sent to the page
+FORMAT_SPEC = re.compile(r"^[\w-]{1,24}(\+[\w-]{1,24})?$")
+LIVE_MAX = 12 * 3600         # the longest live recording one request may ask for
 MP3_QUALITIES = ("320k", "256k", "192k", "128k", "V0", "V2")
 CODECS = ("", "avc1", "av01", "vp09")
 
@@ -57,6 +59,8 @@ class Job:
         self.attempts = 0
         self.samples = []            # (time, sent) for the speed
         self.cond = threading.Condition()
+        self.stop = threading.Event()  # live recordings: the page's Stop button
+        self.live = False
 
     def update(self, **fields):
         with self.cond:
@@ -76,7 +80,8 @@ class Job:
     def public(self):
         return {"token": self.token, "state": self.state, "sent": self.sent, "size": self.size,
                 "speed": round(self.speed()), "filename": self.filename, "title": self.title,
-                "error": self.error, "attempts": self.attempts,
+                "error": self.error, "attempts": self.attempts, "live": self.live,
+                "stopping": self.stop.is_set(),
                 "elapsed": round((self.finished or time.time()) - self.started, 2) if self.started else None,
                 "itags": [f["itag"] for f in self.chosen], "download": f"/dl/{self.token}"}
 
@@ -232,14 +237,17 @@ class App:
             elif (f.get("audioTrack") or {}).get("audioIsDefault", True):
                 audios.append({"itag": f["itag"], "ext": fmt.ext(f), "codec": fmt.codec(f).split(".")[0],
                                "size": fmt.size(f), "bitrate": f.get("bitrate") or 0,
-                               "drc": "drc" in f.get("xtags", "")})
+                               "drc": fmt.is_drc(f)})
         track = job.get("track") or {}
         s = targets.site(job)
         thumb = thumbs[-1]["url"] if thumbs else f"https://i.ytimg.com/vi/{video.id}/hqdefault.jpg"
+        captions, translations = extras.captions(video)
         return {"kind": "video", "id": video.id, "title": video.title, "author": video.author,
                 "duration": video.duration, "views": 0 if track else int(details.get("viewCount") or 0),
-                "site": s, "track": bool(track),
+                "site": s, "track": bool(track), "live": bool(details.get("isLive")),
                 "thumbnail": track.get("cover") or thumb,
+                "formats": self.format_rows(video), "captions": captions, "translations": translations,
+                "sponsor": list(extras.SPONSOR), "description": bool(details.get("shortDescription")),
                 "videos": sorted(videos, key=lambda v: (-v["height"], -v["fps"], v["container"], v["codec"])),
                 "audios": sorted(audios, key=lambda a: -a["bitrate"]),
                 "ffmpeg": bool(self.ffmpeg), "templates": TEMPLATES}
@@ -269,7 +277,34 @@ class App:
         if start is not None and end is not None and end <= start:
             raise WebError("time_order")
         o["start"], o["end"] = (start or 0.0, end) if (start or end) else (None, None)
+        spec = str(body.get("format") or "").strip()
+        if spec and not FORMAT_SPEC.match(spec):
+            raise WebError("bad_format")
+        o["format"] = spec
+        o["chapters"] = bool(body.get("chapters"))
+        o["sponsor"] = extras.sponsor_list(body.get("sponsor"))
+        o["lyrics"] = bool(body.get("lyrics"))
+        o["replaygain"] = bool(body.get("replaygain", True))
+        o["live_duration"] = _int(body.get("live_duration"), 0, LIVE_MAX) or None
+        o["live_from_start"] = bool(body.get("live_from_start"))
         return o
+
+    @staticmethod
+    def format_rows(video):
+        """The -F table as data: every format the page can pick by hand."""
+        rows = []
+        for f in video.formats:
+            if fmt.size(f) <= 0 or "initRange" not in f:
+                continue
+            track = f.get("audioTrack") or {}
+            rows.append({"id": fmt.format_id(f), "kind": fmt.kind(f), "ext": fmt.ext(f),
+                         "container": "webm" if fmt.ext(f) == "webm" else "mp4",
+                         "quality": fmt.quality(f) if fmt.kind(f) == "video" else "",
+                         "codec": fmt.codec_name(f), "bitrate": f.get("averageBitrate") or f.get("bitrate") or 0,
+                         "size": fmt.size(f), "drc": fmt.is_drc(f), "lang": track.get("displayName") or "",
+                         "channels": f.get("audioChannels") or 0, "height": f.get("height") or 0})
+        rows.sort(key=lambda r: (r["kind"] != "video", -r["height"], r["drc"], r["lang"] != "", -r["bitrate"]))
+        return rows
 
     def create(self, body):
         opts = self.options(body)
@@ -281,7 +316,11 @@ class App:
         if opts["mode"] == "original":
             opts["mode"] = "audio" if job.get("track") else "video"
         video = self.job_video(job)
-        meta = self.meta(video, opts, job) if opts["tags"] or opts["cover"] else None
+        if (video.raw.get("videoDetails") or {}).get("isLive"):
+            return self.create_live(job, video, opts)
+        meta = self.meta(video, opts, job) if opts["tags"] or opts["cover"] else {}
+        self.add_extras(meta, video, opts, job)
+        meta = meta or None
         try:
             output, chosen = stream.prepare(video, opts, meta, self.ffmpeg)
         except FastDlpError as e:
@@ -289,16 +328,81 @@ class App:
                 raise
             video = self.job_video(job, fresh=True)                 # stale URLs: ask once more
             output, chosen = stream.prepare(video, opts, meta, self.ffmpeg)
-        v = chosen[0] if fmt.kind(chosen[0]) == "video" else None
-        fields = {"title": video.title, "author": video.author, "uploader": video.author, "id": video.id,
-                  "height": (v or {}).get("height") or "audio", "fps": (v or {}).get("fps") or "",
-                  "ext": stream.file_ext(output.ext)}
-        name = stream.filename(opts["template"], fields, output.ext)
+        name = self.file_name(opts["template"], video, chosen, output.ext, job)
         token = secrets.token_urlsafe(16)
         job = Job(token, video, opts, output, chosen, name)
         with self.lock:
             self.jobs[token] = job
         return job
+
+    def add_extras(self, meta, video, opts, job):
+        """--embed-chapters / --sponsorblock-mark and lyrics, into the streamed file."""
+        if (opts["chapters"] or opts["sponsor"]) and opts["start"] is None:
+            found = extras.chapters(video, opts["sponsor"])
+            if found:
+                meta["_chapters"] = found
+        audio = opts["mode"] == "audio" or bool(job.get("track"))
+        if opts["lyrics"] and audio and opts["tags"]:
+            track = job.get("track") or {}
+            text, _ = extras.lyrics_text(track.get("title") or video.title,
+                                         ", ".join(track.get("artists") or []) or video.author,
+                                         track.get("album"), video.duration)
+            if text:
+                meta["lyrics"] = text
+        if not opts["replaygain"]:
+            meta.pop("replaygain", None)
+
+    def file_name(self, template, video, chosen, ext, job):
+        """The same fields as the command line's -o (upload date only when the template asks)."""
+        upload = None
+        if postprocess.template_fields(template) & set(postprocess.DATE_FIELDS):
+            try:
+                upload = ytmeta.Watch(video.id).upload_date()
+            except Exception:                    # the date is a nicety; never fail a download on it
+                upload = None
+        values = postprocess.fields(video, chosen, stream.file_ext(ext), job, upload)
+        return stream.filename(template, values, ext)
+
+    def create_live(self, job, video, opts):
+        token = secrets.token_urlsafe(16)
+        stop = threading.Event()
+        output = targets.live_output(video, opts, self.ffmpeg, stop.is_set)
+        stamp = time.strftime("%Y-%m-%d %H-%M")
+        name = self.file_name(opts["template"], video, [], output.ext, job)
+        stem, dot, ext = name.rpartition(".")
+        result = Job(token, video, opts, output, [], f"{stem} [live {stamp}].{ext}" if dot else name)
+        result.stop, result.live = stop, True
+        with self.lock:
+            self.jobs[token] = result
+        return result
+
+    def urls(self, body):
+        """--get-url: what a download with these options would fetch, without fetching it."""
+        opts = self.options(body)
+        job = self.pick_job(body)
+        if targets.kind(job) == "direct":
+            spec = self.job_spec(job)
+            if spec is not None:
+                if spec["kind"] == "steamcmd":
+                    raise WebError("steam")
+                return [{"url": spec["url"], "label": spec["kind"].upper()}]
+        video = self.job_video(job)
+        if (video.raw.get("videoDetails") or {}).get("isLive"):
+            return [{"url": (video.raw.get("streamingData") or {}).get("hlsManifestUrl"), "label": "HLS"}]
+        if opts["mode"] == "original":
+            opts["mode"] = "audio" if job.get("track") else "video"
+        return [{"url": f["url"], "label": f"{fmt.format_id(f)} · {fmt.ext(f)} · "
+                                          f"{fmt.quality(f) if fmt.kind(f) == 'video' else fmt.codec_name(f)}"}
+                for f in stream.pick(video, opts)]
+
+    def extra(self, params):
+        """A side file: (bytes, name, content type)."""
+        kind = params.get("kind") or ""
+        extras.check_kind(kind)
+        job = self.pick_job(params)
+        if targets.kind(job) == "direct" and self.job_spec(job) is not None:
+            return extras.direct_file(job, kind)
+        return extras.youtube_file(self.job_video(job), kind, params, job.get("track"))
 
     def create_direct(self, job, spec, opts):
         meta = None
@@ -314,6 +418,11 @@ class App:
                 cover, cover_mime = _image(job["cover_url"])
                 if cover:
                     meta["cover"], meta["cover_mime"] = cover, cover_mime
+            if opts["lyrics"] and opts["tags"] and job.get("audio"):
+                text, _ = extras.lyrics_text(job["title"], job.get("author") or "",
+                                             (job.get("meta") or {}).get("album"), job.get("duration"))
+                if text:
+                    meta["lyrics"] = text
         try:
             output = targets.direct_output(job, spec, opts, meta, self.ffmpeg)
         except FastDlpError as e:
@@ -419,6 +528,10 @@ class Handler(BaseHTTPRequestHandler):
                 return self._static("logo.svg")
             if path == "/api/info":
                 return self._send(200, self.app.info((params.get("url") or [""])[0]))
+            if path == "/api/extra":
+                flat = {k: v[0] for k, v in params.items()}
+                data, name, ctype = self.app.extra(flat)
+                return self._send(200, data, ctype, {"Content-Disposition": _disposition(name)})
             if path == "/api/status":
                 # One short request for every download on the page: a browser keeps only six
                 # connections per site, and each running download already holds one.
@@ -446,7 +559,14 @@ class Handler(BaseHTTPRequestHandler):
             self._error(500, e)
 
     def do_POST(self):
-        if self.path != "/api/jobs":
+        m = re.fullmatch(r"/api/jobs/([\w-]+)/stop", self.path)
+        if m:
+            job = self.app.job(m.group(1))
+            if not job:
+                return self._error(404, WebError("no_job"))
+            job.stop.set()
+            return self._send(200, job.public())
+        if self.path not in ("/api/jobs", "/api/urls"):
             return self._error(404, "not found")
         try:
             n = int(self.headers.get("Content-Length") or 0)
@@ -457,6 +577,8 @@ class Handler(BaseHTTPRequestHandler):
             return self._error(400, WebError("bad_json"))
         try:
             self.app.sweep()
+            if self.path == "/api/urls":
+                return self._send(200, {"urls": self.app.urls(body)})
             job = self.app.create(body)
             self._send(200, job.public())
         except FastDlpError as e:

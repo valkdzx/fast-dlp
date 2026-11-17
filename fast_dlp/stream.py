@@ -150,7 +150,10 @@ def _mp4_plan(remotes, meta, start, end, duration):
         mux._set_durations(mvhd, [s.traks[0] for s in sources], (end or duration) - rebase)
     body = bytes(mvhd) + b"".join(bytes(s.traks[0]) for s in sources)
     body += mux._box(b"mvex", b"".join(bytes(s.trexs[0]) for s in sources))
-    if meta:
+    chapters = (meta or {}).get("_chapters") if not sectioned else None
+    if meta and chapters:
+        body += mux._box(b"udta", mux._mp4_udta(meta)[8:] + mux._nero_chapters(chapters))
+    elif meta:
         body += mux._mp4_udta(meta)
     header = bytes(sources[0].ftyp) + mux._box(b"moov", body)
 
@@ -291,6 +294,9 @@ def _webm_plan(remotes, meta, start, end, duration):
         listed.append((mux._TAGS, tags))
     if attachments:
         listed.append((mux._ATTACHMENTS, attachments))
+    chapters = (meta or {}).get("_chapters") if not sectioned else None
+    if chapters:
+        listed.append((0x1043A770, mux._webm_chapters(chapters, (total or 0) * scale / 1e9 or duration)))
     seekhead_size = len(mux._el(mux._SEEKHEAD, b"".join(seek(e, 0) for e, _ in listed) + seek(mux._CUES, 0)))
     positions, pos = {}, seekhead_size
     for eid, data in listed:
@@ -554,8 +560,14 @@ def plan_for(video, chosen, meta, start=None, end=None):
 # -- choosing formats ------------------------------------------------------------------------------
 
 def pick(video, opts):
-    """[video_format, audio_format] / [audio] / [video] for the options."""
+    """[video_format, audio_format] / [audio] / [video] for the options; opts["format"] is an
+    exact -f value ('401+140', '251-drc') and wins over the rest."""
     all_formats = [f for f in video.formats if fmt.size(f) > 0 and "initRange" in f]
+    if opts.get("format"):
+        picked = fmt.select(all_formats, opts["format"])
+        if len({fmt.ext(f).replace("m4a", "mp4") for f in picked}) > 1:
+            raise FastDlpError(f"-f {opts['format']}: MP4 and WebM formats cannot go into one streamed file")
+        return picked
     audios = [f for f in all_formats if fmt.kind(f) == "audio"]
     videos = [f for f in all_formats if fmt.kind(f) == "video"]
     mode = opts["mode"]
@@ -608,6 +620,8 @@ def prepare(video, opts, meta, ffmpeg=None):
     duration = video.duration or 0
     builder = _mp4_plan if kind == "mp4" else _webm_plan
     mode = opts["mode"]
+    if opts.get("format"):
+        mode = "audio" if all(fmt.kind(f) == "audio" for f in chosen) else "video"
     if mode == "audio" and opts["audio_format"] == "mp3":
         if not ffmpeg:
             raise FastDlpError("MP3 needs ffmpeg on the server")
